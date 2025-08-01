@@ -40,9 +40,11 @@ CREATE TABLE Matchup(
     WeekID INT NOT NULL,
     Team1_ID INT NOT NULL,
     Team2_ID INT NOT NULL,
+    LaneID INT NOT NULL,
     FOREIGN KEY(WeekID) REFERENCES Week(WeekID),
     FOREIGN KEY(Team1_ID) REFERENCES Team(TeamID),
-    FOREIGN KEY(Team2_ID) REFERENCES Team(TeamID)
+    FOREIGN KEY(Team2_ID) REFERENCES Team(TeamID),
+    FOREIGN KEY(LaneID) REFERENCES Lane(LaneID)
 );
 
 --- Table pour les joueurs appartenant à des équipes
@@ -60,7 +62,7 @@ CREATE TABLE Game(
     GameID SERIAL PRIMARY KEY,
     PlayerID INT NOT NULL,
     MatchupID INT NOT NULL,
-    LaneID INT NOT NULL, 
+    LaneID INT NOT NULL,
     GameNumber INT NOT NULL,
     GameScore INT,
     GameApprovalStatus VARCHAR(50),

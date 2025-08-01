@@ -19,7 +19,7 @@ app.get('/', function(req, res) {
 
 
 // On fait un point d'entrée pour récupérer les équipes
-app.get('/api/team', async function(req, res) {
+app.get('/api/teams', async function(req, res) {
   try {
     // On importe la connection à la base de données et on ajoute la constante avec toutes les équipes.
     const allTeams = await pool.query('SELECT * FROM Team');
@@ -46,6 +46,56 @@ app.get('/api/players', async function(req, res) {
     res.status(500).send('Erreur du serveur lors de la récupération des joueurs');
   }
 });
+
+// Pour avoir l'horaire par semaine
+app.get('/api/schedule', async function(req, res) {
+  try {
+    const schedule = await pool.query(`
+      SELECT
+        w.WeekDate,
+        t1.TeamName AS Team1_Name, 
+        t2.TeamName AS Team2_Name
+      FROM Matchup m
+      JOIN Week w ON m.WeekID = w.WeekID
+      JOIN Team t1 ON m.Team1_ID = t1.TeamID
+      JOIN Team t2 ON m.Team2_ID = t2.TeamID
+      ORDER BY w.WeekDate;
+    `);
+
+    res.json(schedule.rows);
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erreur du serveur lors de la récupération de l'horaire");
+  }
+});
+
+// Pour les classements des joueurs
+app.get('/api/rankings', async function(req, res) {
+  try {
+    const rankings = await pool.query(`
+      SELECT
+        p.PlayerName,
+        p.PlayerCode,
+        t.TeamName,
+        COUNT(g.GameID) AS GamesPlayed,
+        SUM(g.GameScore) AS TotalScore,
+        AVG(g.GameScore)::numeric(10,2) AS AverageScore
+      FROM Player p
+      JOIN Game g ON p.PlayerID = g.PlayerID
+      JOIN Team t ON p.TeamID = t.TeamID
+      GROUP BY p.PlayerID, t.TeamName
+      ORDER BY AverageScore DESC;
+    `);
+
+    res.json(rankings.rows);
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erreur du serveur lors de la récupération des classements");
+  }
+});
+
 
 // |------------------------------------------------------------------------  GET ENDPOINTS API FIN ------------------------------------------------------------------------|
 

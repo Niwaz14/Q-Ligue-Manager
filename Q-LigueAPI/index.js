@@ -7,6 +7,8 @@ require('dotenv').config(); //Rendre les variables d'environnement disponibles.
 const express = require('express');
 const pool = require('./db.js'); //Connexion à la base de données PostgreSQL
 const app = express(); // Importer le module express et créer une instance de l'application
+const cors = require('cors'); // Importer le module CORS pour gérer les requêtes cross-origin
+app.use(cors()); // Utiliser CORS pour permettre les requêtes depuis d'autres origines
 app.use(express.json()); // Middleware pour analyser les requêtes JSON
 const port = 3000; // Définir le port sur lequel le serveur écoutera
 

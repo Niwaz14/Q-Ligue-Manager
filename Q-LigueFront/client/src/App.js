@@ -1,37 +1,40 @@
-// src/App.js (Version de test)
 import React from 'react';
-import { BrowserRouter as Router, Link, Routes, Route } from 'react-router-dom';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// --- On met le code de Navigation DIRECTEMENT ici pour le test ---
-function Navigation() {
-  return (
-    <nav style={{ 
-      padding: '1rem', 
-      background: 'red', 
-      color: 'white', 
-      fontSize: '20px' 
-    }}>
-      <Link to="/" style={{ color: 'white', marginRight: '15px' }}>Accueil</Link>
-      <Link to="/saison" style={{ color: 'white' }}>Saison</Link>
-    </nav>
-  );
-}
-// ---------------------------------------------------------------
+// Importer les composants pages
+import Navigation from './components/navigation.js';
+import Accueil from './pages/Accueil.js';
+import SaisonMenu from './pages/SaisonMenu.js';
+import SemaineMenu from './pages/SemaineMenu.js';
+import EquipeMenu from './pages/EquipeMenu.js';
+import JoueurMenu from './pages/JoueurMenu.js';
+import ClassementJoueurs from './pages/ClassementJoueurs.js';
+import Horaire from './pages/Horaire.js';
+import AdminPage from './pages/AdminPage.js'; 
+
+import './App.css';
 
 function App() {
   return (
     <Router>
       <div className="App">
         <header>
-          {/* On utilise le composant Navigation défini juste au-dessus */}
-          <Navigation />
-          <h1>Le test fonctionne si tu vois ce titre.</h1>
+          <Navigation /> 
         </header>
         <main>
-          {/* On peut même ajouter une route pour tester */}
           <Routes>
-            <Route path="/" element={<h2>Page d'accueil</h2>} />
+            <Route path="/" element={<Accueil />} />
+
+            <Route path="/saison" element={<SaisonMenu />}>
+              <Route path="classement-joueurs" element={<ClassementJoueurs />} />
+              <Route path="horaire" element={<Horaire />} />
+            </Route>
+
+            <Route path="/semaine" element={<SemaineMenu />} />
+            <Route path="/equipe" element={<EquipeMenu />} />
+            <Route path="/joueur" element={<JoueurMenu />} />
+
+             <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </main>
       </div>

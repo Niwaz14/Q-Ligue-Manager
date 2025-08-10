@@ -1,0 +1,19 @@
+
+
+.navbar {
+  padding: 1rem;
+  background-color: #f0f0f0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #ccc;
+}
+
+.navLink {
+  margin-right: 15px;
+  color: #333;
+  text-decoration: none;
+}
+
+
+.navLink:hover {
+  color: #007bff;
+}

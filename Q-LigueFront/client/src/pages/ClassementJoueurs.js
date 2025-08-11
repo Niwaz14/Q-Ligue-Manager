@@ -1,34 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import styles from './ClassementJoueurs.module.css'; 
 
 function ClassementJoueurs() {
   const [rankings, setRankings] = useState([]);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
+
   useEffect(function() {
     async function fetchRankings() {
       try {
+        
         const response = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings`);
         const data = await response.json();
         setRankings(data);
       } catch (error) {
-        console.error("Erreur lors de la récupération du classement des joueurs:", error);
+        console.error("Erreur lors de la récupération du classement (joueurs):", error);
       } finally {
-        setLoading(false); 
+        setLoading(false);
       }
     }
-
     fetchRankings();
   }, []);
 
-  
   if (loading) {
-    return <p>Chargement du classement des joueurs...</p>;
+    return <p>Chargement du classement...</p>;
   }
 
-  // Affichage du classement des joueurs
   return (
     <div>
       <h3>Classement des Joueurs</h3>
-      <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table className={styles.rankingsTable}>
         <thead>
           <tr>
             <th>Joueur</th>

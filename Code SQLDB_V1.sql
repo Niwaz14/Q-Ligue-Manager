@@ -70,3 +70,6 @@ CREATE TABLE Game(
     FOREIGN KEY(MatchupID) REFERENCES Matchup(MatchupID),
     FOREIGN KEY(LaneID) REFERENCES Lane(LaneID)
 );
+
+ALTER TABLE Game
+ADD CONSTRAINT unique_game_entry UNIQUE (PlayerID, MatchupID, GameNumber);

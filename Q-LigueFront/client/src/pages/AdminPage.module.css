@@ -1,0 +1,113 @@
+
+.formContainer {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.formGroup select {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+
+.scoresSection {
+  margin-top: 2rem;
+  border-top: 1px solid #ccc;
+  padding-top: 1.5rem;
+}
+
+
+.scoreInput {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+
+.scoreInput label {
+  font-weight: normal;
+  margin-right: 1rem;
+}
+
+
+.scoreInput input {
+  width: 80px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  text-align: right;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+
+.submitButton {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: white;
+  background-color: #28a745; 
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 1.5rem;
+}
+
+
+.submitButton:hover {
+  background-color: #218838;
+}
+
+.scoreInputField {
+
+  -webkit-appearance: none;
+  margin: 0 0 0 5px; 
+  width: 60px; 
+  padding: 0.5rem;
+  font-size: 1rem;
+  text-align: right;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+.scoreInputField[type=number] {
+  -moz-appearance: textfield;
+}
+
+.teamSection {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.teamSection h4 {
+  margin-top: 0;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+}
+
+
+.invalidScore {
+  border-color: red;
+  background-color: #fff0f0;
+}

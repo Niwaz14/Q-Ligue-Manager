@@ -54,13 +54,16 @@ app.get('/api/schedule', async function(req, res) {
   try {
     const schedule = await pool.query(`
       SELECT
+        m.MatchupID,  -- LA LIGNE MANQUANTE À AJOUTER
         w.WeekDate,
         t1.TeamName AS Team1_Name, 
-        t2.TeamName AS Team2_Name
+        t2.TeamName AS Team2_Name,
+        l.LaneNumber
       FROM Matchup m
       JOIN Week w ON m.WeekID = w.WeekID
       JOIN Team t1 ON m.Team1_ID = t1.TeamID
       JOIN Team t2 ON m.Team2_ID = t2.TeamID
+      JOIN Lane l ON m.LaneID = l.LaneID
       ORDER BY w.WeekDate;
     `);
 
@@ -98,6 +101,35 @@ app.get('/api/rankings', async function(req, res) {
   }
 });
 
+// Pour récupérer les détails d'un seul match, y compris les joueurs et les scores existants
+app.get('/api/matchups/:id', async function(req, res) {
+  try {
+    const { id } = req.params; // Récupère l'ID du match depuis l'URL
+
+    const query = `
+      SELECT
+        p.PlayerID,
+        p.PlayerName,
+        t.TeamName, 
+        g.GameScore,
+        g.GameNumber
+      FROM Player p
+      JOIN Team t ON p.TeamID = t.TeamID 
+      LEFT JOIN Game g ON p.PlayerID = g.PlayerID AND g.MatchupID = $1
+      WHERE p.TeamID IN (
+        (SELECT Team1_ID FROM Matchup WHERE MatchupID = $1),
+        (SELECT Team2_ID FROM Matchup WHERE MatchupID = $1)
+      );
+    `;
+
+    const playersAndScores = await pool.query(query, [id]);
+    res.json(playersAndScores.rows);
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
 
 // |------------------------------------------------------------------------  GET ENDPOINTS API FIN ------------------------------------------------------------------------|
 
@@ -120,6 +152,47 @@ app.post('/api/games', async function(req, res) {
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Erreur du serveur lors de l'envoi de la partie");
+  }
+});
+
+app.post('/api/scores/batch', async function(req, res) {
+  try {
+    const { scores, matchupId } = req.body; // scores sera un objet { playerid: { game1: score1, ... } }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN'); // Commence une transaction
+
+      for (const playerId in scores) {
+        for (const gameNumberKey in scores[playerId]) {
+          const gameNumber = parseInt(gameNumberKey.replace('game', ''));
+          const gameScore = scores[playerId][gameNumberKey];
+
+          if (gameScore !== null && gameScore !== '') {
+            // Requête "UPSERT": Met à jour si la partie existe, sinon l'insère.
+            const upsertQuery = `
+              INSERT INTO Game (PlayerID, MatchupID, LaneID, GameNumber, GameScore, GameApprovalStatus)
+              SELECT $1, $2, m.LaneID, $3, $4, 'approved'
+              FROM Matchup m
+              WHERE m.MatchupID = $2
+              ON CONFLICT (PlayerID, MatchupID, GameNumber)
+              DO UPDATE SET GameScore = EXCLUDED.GameScore;
+            `;
+            await client.query(upsertQuery, [playerId, matchupId, gameNumber, gameScore]);
+          }
+        }
+      }
+      await client.query('COMMIT'); // Valide la transaction
+      res.status(200).send("Scores enregistrés avec succès");
+    } catch (e) {
+      await client.query('ROLLBACK'); // Annule la transaction en cas d'erreur
+      throw e;
+    } finally {
+      client.release(); // Libère le client de la pool
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
   }
 });
 

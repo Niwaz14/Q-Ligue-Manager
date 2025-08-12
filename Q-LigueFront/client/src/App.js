@@ -11,6 +11,9 @@ import JoueurMenu from './pages/JoueurMenu.js';
 import ClassementJoueurs from './pages/ClassementJoueurs.js';
 import Horaire from './pages/Horaire.js';
 import AdminPage from './pages/AdminPage.js'; 
+import AdminLoginPage from './pages/AdminLoginPage.js';
+import ProtectedRoute from './components/ProtectedRoute.js';
+// ---------------------------------------------------
 
 import './App.css';
 
@@ -34,7 +37,17 @@ function App() {
             <Route path="/equipe" element={<EquipeMenu />} />
             <Route path="/joueur" element={<JoueurMenu />} />
 
-             <Route path="/admin" element={<AdminPage />} />
+        
+
+            <Route path="/admin" element={<AdminLoginPage />} />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AdminPage />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </main>
       </div>

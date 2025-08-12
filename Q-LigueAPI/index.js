@@ -196,6 +196,20 @@ app.post('/api/scores/batch', async function(req, res) {
   }
 });
 
+
+app.post('/api/verify', (req, res) => { // Solution temporaire pour vérifier le code d'accès administrateur
+    const { accessCode } = req.body;
+    
+    
+    if (accessCode && accessCode === process.env.ADMIN_CODE) {
+        
+        res.json({ success: true });
+    } else {
+        res.status(401).json({ success: false, message: 'Invalid code' });
+    }
+});
+
+
 // |------------------------------------------------------------------------ POST ENDPOINTS API FIN ------------------------------------------------------------------------|
 
 app.listen(port, function() {

@@ -76,29 +76,95 @@ app.get('/api/schedule', async function(req, res) {
 });
 
 // Pour les classements des joueurs
-app.get('/api/rankings', async function(req, res) {
-  try {
-    const rankings = await pool.query(`
-      SELECT
-        p.PlayerName,
-        p.PlayerCode,
-        t.TeamName,
-        COUNT(g.GameID) AS GamesPlayed,
-        SUM(g.GameScore) AS TotalScore,
-        AVG(g.GameScore)::numeric(10,2) AS AverageScore
-      FROM Player p
-      JOIN Game g ON p.PlayerID = g.PlayerID
-      JOIN Team t ON p.TeamID = t.TeamID
-      GROUP BY p.PlayerID, t.TeamName
-      ORDER BY AverageScore DESC;
-    `);
+app.get('/api/rankings/:weekId', async (req, res) => {
+    try {
+        const { weekId } = req.params;
+        const handicapBase = 240;
+        const handicapFactor = 0.40;
 
-    res.json(rankings.rows);
+        const rankingsQuery = `
+            WITH PlayerAverages AS (
+                SELECT
+                    p."PlayerID",
+                    COALESCE(AVG(g."GameScore"), 0) AS "Average"
+                FROM "Player" p
+                LEFT JOIN "Game" g ON p."PlayerID" = g."PlayerID"
+                LEFT JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+                WHERE g."IsAbsent" = FALSE AND m."WeekID" <= $1
+                GROUP BY p."PlayerID"
+            ),
+            Handicaps AS (
+                SELECT
+                    "PlayerID",
+                    GREATEST(0, FLOOR((${handicapBase} - "Average") * ${handicapFactor})) AS "Handicap"
+                FROM PlayerAverages
+            ),
+            GamesWithHandicap AS (
+                SELECT
+                    g."GameID", g."PlayerID", g."MatchupID", g."GameNumber", g."GameScore",
+                    m."WeekID", p."TeamID", h."Handicap",
+                    (g."GameScore" + h."Handicap") AS "ScoreWithHandicap"
+                FROM "Game" g
+                JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+                JOIN "Player" p ON g."PlayerID" = p."PlayerID"
+                JOIN Handicaps h ON g."PlayerID" = h."PlayerID"
+                WHERE m."WeekID" <= $1
+            ),
+            PlayerMatchupPoints AS (
+                SELECT
+                    g1."PlayerID", g1."MatchupID",
+                    SUM(CASE WHEN g1."ScoreWithHandicap" > g2."ScoreWithHandicap" THEN 1 WHEN g1."ScoreWithHandicap" = g2."ScoreWithHandicap" THEN 0.5 ELSE 0 END) AS "GamePoints"
+                FROM GamesWithHandicap g1
+                JOIN "Matchup" m ON g1."MatchupID" = m."MatchupID"
+                JOIN GamesWithHandicap g2 ON g1."MatchupID" = g2."MatchupID" AND g1."GameNumber" = g2."GameNumber"
+                WHERE ((SELECT "TeamID" FROM "Player" WHERE "PlayerID" = g1."PlayerID") = m."Team1_ID" AND (SELECT "TeamID" FROM "Player" WHERE "PlayerID" = g2."PlayerID") = m."Team2_ID")
+                   OR ((SELECT "TeamID" FROM "Player" WHERE "PlayerID" = g1."PlayerID") = m."Team2_ID" AND (SELECT "TeamID" FROM "Player" WHERE "PlayerID" = g2."PlayerID") = m."Team1_ID")
+                GROUP BY g1."PlayerID", g1."MatchupID"
+            ),
+            PlayerLastWeek AS (
+                SELECT "PlayerID", MAX("WeekID") AS "LastWeekID"
+                FROM GamesWithHandicap WHERE "GameScore" IS NOT NULL GROUP BY "PlayerID"
+            ),
+            LastThreeGames AS (
+                SELECT
+                    g."PlayerID",
+                    MAX(CASE WHEN g."GameNumber" = 1 THEN g."GameScore" END) AS "LastGame1",
+                    MAX(CASE WHEN g."GameNumber" = 2 THEN g."GameScore" END) AS "LastGame2",
+                    MAX(CASE WHEN g."GameNumber" = 3 THEN g."GameScore" END) AS "LastGame3"
+                FROM "Game" g
+                JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+                JOIN PlayerLastWeek plw ON g."PlayerID" = plw."PlayerID" AND m."WeekID" = plw."LastWeekID"
+                GROUP BY g."PlayerID"
+            )
+            SELECT
+                p."PlayerName",
+                t."TeamName",
+                pa."Average",
+                h."Handicap",
+                ltg."LastGame1", ltg."LastGame2", ltg."LastGame3",
+                (ltg."LastGame1" + ltg."LastGame2" + ltg."LastGame3") AS "Triple",
+                (ltg."LastGame1" + ltg."LastGame2" + ltg."LastGame3" + (h."Handicap" * 3)) AS "TripleWithHandicap",
+                (SELECT SUM("GameScore") FROM "Game" g JOIN "Matchup" m ON g."MatchupID" = m."MatchupID" WHERE g."PlayerID" = p."PlayerID" AND g."IsAbsent" = FALSE AND m."WeekID" <= $1) AS "TotalSeasonScore",
+                (SELECT COUNT("GameID") FROM "Game" g JOIN "Matchup" m ON g."MatchupID" = m."MatchupID" WHERE g."PlayerID" = p."PlayerID" AND g."IsAbsent" = FALSE AND m."WeekID" <= $1) AS "TotalGamesPlayed",
+                (SELECT MAX("GameScore") FROM "Game" g JOIN "Matchup" m ON g."MatchupID" = m."MatchupID" WHERE g."PlayerID" = p."PlayerID" AND g."IsAbsent" = FALSE AND m."WeekID" <= $1) AS "HighestSingle",
+                COALESCE((SELECT "GamePoints" FROM PlayerMatchupPoints pmp JOIN "Matchup" m ON pmp."MatchupID" = m."MatchupID" WHERE pmp."PlayerID" = p."PlayerID" AND m."WeekID" = plw."LastWeekID"), 0) AS "WeekPoints",
+                COALESCE((SELECT SUM("GamePoints") FROM PlayerMatchupPoints WHERE "PlayerID" = p."PlayerID"), 0) AS "TotalPoints"
+            FROM "Player" p
+            LEFT JOIN "Team" t ON p."TeamID" = t."TeamID"
+            LEFT JOIN PlayerAverages pa ON p."PlayerID" = pa."PlayerID"
+            LEFT JOIN Handicaps h ON p."PlayerID" = h."PlayerID"
+            LEFT JOIN LastThreeGames ltg ON p."PlayerID" = ltg."PlayerID"
+            LEFT JOIN PlayerLastWeek plw ON p."PlayerID" = plw."PlayerID"
+            ORDER BY pa."Average" DESC;
+        `;
 
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Erreur du serveur lors de la récupération des classements");
-  }
+        const { rows } = await pool.query(rankingsQuery, [weekId]);
+        res.json(rows);
+
+    } catch (err) {
+        console.error("Erreur pour les classements:", err.message);
+        res.status(500).send('Server error');
+    }
 });
 
 // Pour récupérer les détails d'un seul match, y compris les joueurs et les scores existants
@@ -155,45 +221,35 @@ app.post('/api/games', async function(req, res) {
   }
 });
 
-app.post('/api/scores/batch', async function(req, res) {
-  try {
-    const { scores, matchupId } = req.body; // scores sera un objet { playerid: { game1: score1, ... } }
-
+// Route pour enregistrer les pointages en batch
+app.post('/api/scores/batch', async (req, res) => {
+    const { matchupId, scores } = req.body;
     const client = await pool.connect();
+
     try {
-      await client.query('BEGIN'); // Commence une transaction
+        await client.query('BEGIN');
+        const queryText = `
+            INSERT INTO "Game" ("PlayerID", "MatchupID", "LaneID", "GameNumber", "GameScore", "IsAbsent")
+            VALUES ($1, $2, 1, $3, $4, $5)
+            ON CONFLICT ("PlayerID", "MatchupID", "GameNumber")
+            DO UPDATE SET "GameScore" = EXCLUDED."GameScore", "IsAbsent" = EXCLUDED."IsAbsent";
+        `;
 
-      for (const playerId in scores) {
-        for (const gameNumberKey in scores[playerId]) {
-          const gameNumber = parseInt(gameNumberKey.replace('game', ''));
-          const gameScore = scores[playerId][gameNumberKey];
-
-          if (gameScore !== null && gameScore !== '') {
-            // Requête "UPSERT": Met à jour si la partie existe, sinon l'insère.
-            const upsertQuery = `
-              INSERT INTO Game (PlayerID, MatchupID, LaneID, GameNumber, GameScore, GameApprovalStatus)
-              SELECT $1, $2, m.LaneID, $3, $4, 'approved'
-              FROM Matchup m
-              WHERE m.MatchupID = $2
-              ON CONFLICT (PlayerID, MatchupID, GameNumber)
-              DO UPDATE SET GameScore = EXCLUDED.GameScore;
-            `;
-            await client.query(upsertQuery, [playerId, matchupId, gameNumber, gameScore]);
-          }
+        for (const score of scores) {
+            
+            const params = [score.playerId, matchupId, score.gameNumber, score.score, score.isAbsent];
+            await client.query(queryText, params);
         }
-      }
-      await client.query('COMMIT'); // Valide la transaction
-      res.status(200).send("Scores enregistrés avec succès");
-    } catch (e) {
-      await client.query('ROLLBACK'); // Annule la transaction en cas d'erreur
-      throw e;
+
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Changement aux pointages effectué avec succès' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Erreur lors de la mise à jours des pointages', err.message);
+        res.status(500).send('Erreur du serveur lors de la mise à jour des pointages');
     } finally {
-      client.release(); // Libère le client de la pool
+        client.release();
     }
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
 });
 
 

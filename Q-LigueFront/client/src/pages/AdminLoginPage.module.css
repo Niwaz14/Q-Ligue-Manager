@@ -3,10 +3,10 @@
 
 .loginContainer {
     display: flex;
-    justify-content: center; 
-    align-items: center; 
-    padding-top: 5rem; 
-    min-height: 80vh; 
+    justify-content: center;
+    align-items: flex-start; 
+    padding-top: 1rem; 
+    min-height: 80vh;
 }
 
 .loginForm {
@@ -16,7 +16,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     text-align: center;
     width: 100%;
-    max-width: 400px; 
+    max-width: 400px;
     border: 1px solid #e0e0e0;
 }
 
@@ -25,15 +25,15 @@
 }
 
 .loginForm p {
-    margin-bottom: 1.5rem;
-    color: #5B5C5D; 
+    margin-bottom: 1rem;
+    color: #5B5C5D;
 }
 
 .inputField {
-    box-sizing: border-box; 
+    box-sizing: border-box;
     width: 100%;
     padding: 0.8rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 1rem;
@@ -43,7 +43,7 @@
     width: 100%;
     padding: 0.8rem;
     border: none;
-    background-color: #18B2C8; 
+    background-color: #18B2C8;
     color: white;
     font-size: 1.1rem;
     font-weight: bold;
@@ -60,4 +60,51 @@
     color: #d93025;
     margin-top: 1rem;
     font-weight: bold;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex-grow: 1; 
+}
+
+.app-footer {
+  background-color: #333; 
+  color: white;
+  padding: 1rem 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0;
+}
+
+.copyright-text {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.footer-button {
+  background-color: #18B2C8; 
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.footer-button:hover {
+  background-color: #1491a3;
 }

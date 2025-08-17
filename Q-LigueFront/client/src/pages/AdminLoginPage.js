@@ -2,40 +2,41 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './AdminLoginPage.module.css';
 
-
 function AdminLoginPage() {
+    
     const [accessCode, setAccessCode] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
+    
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(''); 
+        e.preventDefault();
+        setError('');
 
-    try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/verify`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ accessCode }),
-        });
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accessCode }),
+            });
+            const data = await response.json();
 
-        const data = await response.json();
-
-        if (data.success) {
-            sessionStorage.setItem('isAdminAuthenticated', 'true');
-            navigate('/admin/dashboard');
-        } else {
-            setError(`Code d'accès invalide.`);
-            setAccessCode('');
+            if (data.success) {
+                sessionStorage.setItem('isAdminAuthenticated', 'true');
+                
+                window.dispatchEvent(new Event('authChange')); 
+                navigate('/admin/dashboard');
+            } else {
+                setError(`Code d'accès invalide.`);
+                setAccessCode('');
+            }
+        } catch (err) {
+            console.error('Login request failed:', err);
+            setError('Une erreur est survenue lors de la connexion.');
         }
-    } catch (err) {
-        console.error('Login request failed:', err);
-        setError('Une erreur est survenue lors de la connexion.');
-    }
-};
+    };
 
+    
     return (
         <div className={styles.loginContainer}>
             <form onSubmit={handleSubmit} className={styles.loginForm}>
@@ -49,7 +50,7 @@ function AdminLoginPage() {
                     className={styles.inputField}
                 />
                 <button type="submit" className={styles.submitButton}>
-                    Entrer
+                    Connexion
                 </button>
                 {error && <p className={styles.errorMessage}>{error}</p>}
             </form>

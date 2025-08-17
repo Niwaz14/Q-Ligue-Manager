@@ -1,220 +1,192 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './AdminPage.module.css';
 
 function AdminPage() {
-  
-  const [allMatchups, setAllMatchups] = useState([]);
-  const [weeks, setWeeks] = useState([]);
-  const [selectedWeek, setSelectedWeek] = useState('');
-  const [filteredMatchups, setFilteredMatchups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedMatchupId, setSelectedMatchupId] = useState('');
-  const [scores, setScores] = useState({}); 
-  const [players, setPlayers] = useState([]); 
-  const [isScoresLoading, setIsScoresLoading] = useState(false);
-  const [team1, setTeam1] = useState({ name: '', players: [] });
-  const [team2, setTeam2] = useState({ name: '', players: [] });
+    // States pour gérer les sélections et les données
+    const [schedule, setSchedule] = useState([]);
+    const [selectedWeek, setSelectedWeek] = useState('');
+    const [selectedMatchup, setSelectedMatchup] = useState('');
+    const [matchupDetails, setMatchupDetails] = useState(null);
+    const [scores, setScores] = useState({});
+    const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
-
-  useEffect(function() { 
-    async function fetchData() {
-      try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
-        const data = await response.json();
-        const uniqueWeeks = [...new Set(data.map(match => match.weekdate))];
-        setWeeks(uniqueWeeks);
-        setAllMatchups(data);
-      } catch (error) {
-        console.error("Erreur: Impossible de charger le calendrier", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
-
-  function handleWeekChange(event) { // Fonction pour gérer le changement de semaine
-    const week = event.target.value;
-    setSelectedWeek(week);
-    const matchupsForWeek = allMatchups.filter(match => match.weekdate === week);
-    setFilteredMatchups(matchupsForWeek);
-    setSelectedMatchupId(''); // Réinitialiser la sélection de match
-    
-    setTeam1({ name: '', players: [] }); 
-    setTeam2({ name: '', players: [] });
-  }
-
-  
-  async function handleMatchupChange(event) {
-    const matchupId = event.target.value;
-    setSelectedMatchupId(matchupId);
-
-    if (!matchupId) {
-      
-      setTeam1({ name: '', players: [] });
-      setTeam2({ name: '', players: [] });
-      return;
-    }
-
-    setIsScoresLoading(true);
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/matchups/${matchupId}`);
-      const data = await response.json();
-      
-      
-      // On retrouve les noms des équipes depuis la liste des matchs qu'on a déjà
-      const currentMatchup = filteredMatchups.find(m => m.matchupid == matchupId);
-      const team1Name = currentMatchup.team1_name;
-      const team2Name = currentMatchup.team2_name;
-
-      // On filtre la liste complète des joueurs pour créer nos deux équipes
-      const team1Players = data.filter(p => p.teamname === team1Name && data.findIndex(i => i.playerid === p.playerid) === data.indexOf(p));
-      const team2Players = data.filter(p => p.teamname === team2Name && data.findIndex(i => i.playerid === p.playerid) === data.indexOf(p));
-      
-      setTeam1({ name: team1Name, players: team1Players });
-      setTeam2({ name: team2Name, players: team2Players });
-      
-      // On transforme les données pour avoir le bon format pour les scores
-      const initialScores = {};
-      data.forEach(player => {
-        if (!initialScores[player.playerid]) {
-          initialScores[player.playerid] = {};
+    // Fonction pour récupérer le calendrier au chargement
+    const fetchData = useCallback(async () => {
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data = await response.json();
+            setSchedule(data);
+        } catch (err) {
+            setError(`Erreur: Impossible de charger le calendrier - ${err.message}`);
         }
-        initialScores[player.playerid][`game${player.gamenumber}`] = player.gamescore || '';
-      });
-      setScores(initialScores);
+    }, []);
 
-    } catch (error) {
-      console.error("Erreur lors de la récupération des scores:", error);
-    } finally {
-      setIsScoresLoading(false);
-    }
-  }
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
-  // fonction pour gérer la modification d'un score
-  function handleScoreChange(playerId, gameNumber, value) {
-   
-    if (value.length > 3) return;
+    // Gère le changement de la semaine sélectionnée
+    const handleWeekChange = (e) => {
+        setSelectedWeek(e.target.value);
+        setSelectedMatchup('');
+        setMatchupDetails(null);
+        setScores({});
+    };
 
-    setScores(prevScores => ({
-      ...prevScores,
-      [playerId]: {
-        ...prevScores[playerId],
-        [`game${gameNumber}`]: value === '' ? '' : parseInt(value, 10),
-      },
-    }));
-  }
+    // Gère le changement du match sélectionné et récupère les détails
+    const handleMatchupChange = async (e) => {
+        const matchupId = e.target.value;
+        setSelectedMatchup(matchupId);
+        if (matchupId) {
+            try {
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/matchups/${matchupId}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                setMatchupDetails(data);
+                // Initialise l'état des scores pour les joueurs du match
+                const initialScores = {};
+                [...data.team1Players, ...data.team2Players].forEach(player => {
+                    initialScores[player.PlayerID] = {
+                        game1: '', game2: '', game3: '',
+                        isAbsent1: false, isAbsent2: false, isAbsent3: false
+                    };
+                });
+                setScores(initialScores);
+            } catch (err) {
+                setError(`Erreur: Impossible de charger les détails du match - ${err.message}`);
+            }
+        } else {
+            setMatchupDetails(null);
+        }
+    };
 
-  // fonction pour gérer la soumission du formulaire
-  async function handleSubmit(event) {
-    event.preventDefault();
-    if (!selectedMatchupId) {
-      alert("Veuillez sélectionner un match.");
-      return;
-    }
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/scores/batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scores, matchupId: selectedMatchupId }),
-      });
-      if (response.ok) {
-        alert('Scores enregistrés avec succès !');
-      } else {
-        alert("Erreur lors de l'enregistrement des scores.");
-      }
-    } catch (error) {
-      console.error("Erreur lors de la soumission des scores:", error);
-      alert("Une erreur s'est produite.");
-    }
-  }
-  
-  // fonction réutilisable pour afficher les champs de score d'une équipe
-  const renderScoreInputsForTeam = (team) => {
-    // S'il n'y a pas de joueurs, on n'affiche rien.
-    if (!team || !team.players || team.players.length === 0) return null;
+    // Gère la modification d'un score
+    const handleScoreChange = (playerId, game, value) => {
+        setScores(prev => ({
+            ...prev,
+            [playerId]: { ...prev[playerId], [game]: value }
+        }));
+    };
+
+    // Gère le changement de la checkbox "absent"
+    const handleAbsentChange = (playerId, gameKey, isChecked) => {
+        setScores(prev => ({
+            ...prev,
+            [playerId]: { ...prev[playerId], [gameKey]: isChecked }
+        }));
+    };
+
+    // Soumet les scores au backend
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccessMessage('');
+
+        const scoreData = Object.entries(scores).flatMap(([playerId, games]) => [
+            { playerId: parseInt(playerId), gameNumber: 1, score: parseInt(games.game1, 10) || 0, isAbsent: games.isAbsent1 },
+            { playerId: parseInt(playerId), gameNumber: 2, score: parseInt(games.game2, 10) || 0, isAbsent: games.isAbsent2 },
+            { playerId: parseInt(playerId), gameNumber: 3, score: parseInt(games.game3, 10) || 0, isAbsent: games.isAbsent3 }
+        ]);
+
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/scores/batch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    matchupId: parseInt(selectedMatchup),
+                    scores: scoreData
+                }),
+            });
+            if (!response.ok) throw new Error('La soumission des pointages a échoué.');
+            setSuccessMessage('Pointages enregistrés avec succès!');
+        } catch (err) {
+            setError(err.message);
+        }
+    };
     
-    return (
-      <div className={styles.teamSection}>
-        <h4>{team.name}</h4>
-        {team.players.map(player => {
-            // On s'assure d'avoir un objet de score pour ce joueur, même s'il est vide
-            const playerScores = scores[player.playerid] || {};
-            return (
-              <div key={player.playerid} className={styles.scoreInput}>
-                <label>{player.playername}</label>
-                <div>
-                  {[1, 2, 3].map(gameNum => {
-                    const scoreValue = playerScores[`game${gameNum}`] || '';
-                    // Valider si le score est > 300 pour le style
-                    const isInvalidScore = scoreValue > 300;
-                    return (
-                      <input
-                        key={gameNum}
+    // Génère les options pour le sélecteur de semaine
+    const weekOptions = schedule.map(week => (
+        <option key={week.WeekID} value={week.WeekID}>
+            Semaine {new Date(week.WeekDate).toLocaleDateString()}
+        </option>
+    ));
+
+    // Génère les options pour le sélecteur de match en fonction de la semaine
+    const matchupOptions = selectedWeek ? schedule
+        .find(w => w.WeekID === parseInt(selectedWeek))?.matchups
+        .map(m => (
+            <option key={m.MatchupID} value={m.MatchupID}>
+                {m.Team1Name} vs {m.Team2Name}
+            </option>
+        )) : [];
+
+    // Fonction pour rendre les inputs de score pour un joueur
+    const renderPlayerInputs = (player) => (
+        <tr key={player.PlayerID}>
+            <td>{player.PlayerName}</td>
+            {[1, 2, 3].map(gameNum => (
+                <td key={gameNum}>
+                    <input
                         type="number"
-                        inputMode="numeric"
-                        className={`${styles.scoreInputField} ${isInvalidScore ? styles.invalidScore : ''}`}
-                        placeholder={`Partie ${gameNum}`}
-                        value={scoreValue}
-                        onChange={(e) => handleScoreChange(player.playerid, gameNum, e.target.value)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            );
-        })}
-      </div>
+                        className={styles.scoreInput}
+                        value={scores[player.PlayerID]?.[`game${gameNum}`] || ''}
+                        onChange={(e) => handleScoreChange(player.PlayerID, `game${gameNum}`, e.target.value)}
+                    />
+                    <label className={styles.absentLabel}>
+                        <input
+                            type="checkbox"
+                            checked={scores[player.PlayerID]?.[`isAbsent${gameNum}`] || false}
+                            onChange={(e) => handleAbsentChange(player.PlayerID, `isAbsent${gameNum}`, e.target.checked)}
+                        />
+                        Abs
+                    </label>
+                </td>
+            ))}
+        </tr>
     );
-  };
 
+    return (
+        <div className={styles.adminContainer}>
+            <h2>Entrée des Pointages</h2>
+            {error && <p className={styles.errorMessage}>{error}</p>}
+            {successMessage && <p className={styles.successMessage}>{successMessage}</p>}
 
-  if (loading) { return <p>Chargement...</p>; }
+            <form onSubmit={handleSubmit}>
+                <div className={styles.selectors}>
+                    <select value={selectedWeek} onChange={handleWeekChange}>
+                        <option value="">Sélectionner une semaine</option>
+                        {weekOptions}
+                    </select>
+                    {selectedWeek && (
+                        <select value={selectedMatchup} onChange={handleMatchupChange}>
+                            <option value="">Sélectionner un match</option>
+                            {matchupOptions}
+                        </select>
+                    )}
+                </div>
 
-  return (
-    <div className={styles.formContainer}>
-      <h1>Admin - Entrée des pointages</h1>
-      <form onSubmit={handleSubmit}>
-        {/* Sélection de la semaine */}
-        <div className={styles.formGroup}>
-          <label htmlFor="week-select">1. Choisir une semaine :</label>
-          <select id="week-select" value={selectedWeek} onChange={handleWeekChange}>
-            <option value="">-- Sélectionnez une semaine --</option>
-            {weeks.map((weekDate, index) => {
-              const displayDate = new Date(weekDate).toLocaleDateString('fr-CA');
-              return <option key={index} value={weekDate}>{displayDate}</option>;
-            })}
-          </select>
+                {matchupDetails && (
+                    <div className={styles.matchupContainer}>
+                        <h3>{matchupDetails.team1Name}</h3>
+                        <table className={styles.scoreTable}>
+                            <thead><tr><th>Joueur</th><th>Partie 1</th><th>Partie 2</th><th>Partie 3</th></tr></thead>
+                            <tbody>{matchupDetails.team1Players.map(renderPlayerInputs)}</tbody>
+                        </table>
+
+                        <h3>{matchupDetails.team2Name}</h3>
+                        <table className={styles.scoreTable}>
+                            <thead><tr><th>Joueur</th><th>Partie 1</th><th>Partie 2</th><th>Partie 3</th></tr></thead>
+                            <tbody>{matchupDetails.team2Players.map(renderPlayerInputs)}</tbody>
+                        </table>
+                        
+                        <button type="submit" className={styles.submitButton}>Enregistrer les pointages</button>
+                    </div>
+                )}
+            </form>
         </div>
-
-        {selectedWeek && (
-          <div className={styles.formGroup}>
-            <label htmlFor="matchup-select">2. Choisir un match :</label> {/* Sélection du match */}
-            <select id="matchup-select" value={selectedMatchupId} onChange={handleMatchupChange}>
-              <option value="">-- Sélectionnez un match --</option>
-              {filteredMatchups.map((match) => (
-                <option key={match.matchupid} value={match.matchupid}>
-                  {match.team1_name} vs {match.team2_name} (Allée {match.lanenumber})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        
-        {isScoresLoading && <p>Chargement des joueurs...</p>} 
-        {/* Affichage des scores si un match est sélectionné */}
-        {team1.players.length > 0 && (
-          <div className={styles.scoresSection}>
-            <h3>3. Entrer les scores</h3>
-            {renderScoreInputsForTeam(team1)}
-            {renderScoreInputsForTeam(team2)}
-            <button type="submit" className={styles.submitButton}>Enregistrer les scores</button>
-          </div>
-        )}
-      </form>
-    </div>
-  );
+    );
 }
 
 export default AdminPage;

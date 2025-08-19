@@ -1,205 +1,199 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+// Importer le CSS module pour la page d'administration
 import styles from './AdminPage.module.css';
 
-function AdminPage() {
-    // States pour gérer les sélections et les données
+const AdminPage = () => {
+    // Définir les états pour gérer la sélection, les données et les scores
     const [schedule, setSchedule] = useState([]);
+    const [weeks, setWeeks] = useState([]);
     const [selectedWeek, setSelectedWeek] = useState('');
-    const [selectedMatchup, setSelectedMatchup] = useState('');
-    const [matchupDetails, setMatchupDetails] = useState(null);
+    const [matchupsForWeek, setMatchupsForWeek] = useState([]);
+    const [selectedMatchupId, setSelectedMatchupId] = useState('');
+    const [players, setPlayers] = useState([]);
     const [scores, setScores] = useState({});
-    const [error, setError] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
 
-    // Fonction pour récupérer le calendrier au chargement
-    const fetchData = useCallback(async () => {
-        try {
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
-            if (!response.ok) throw new Error('Network response was not ok');
-            const data = await response.json();
-            setSchedule(data);
-        } catch (err) {
-            setError(`Erreur: Impossible de charger le calendrier - ${err.message}`);
-        }
+    // Récupérer tout l'horaire de la saison au montage du composant
+    useEffect(() => {
+        const fetchSchedule = async () => {
+            try {
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
+                const data = await response.json();
+                setSchedule(data);
+
+                // Calculer les semaines uniques à partir de l'horaire
+                const uniqueWeeks = [...new Set(data.map(item => {
+                    const date = new Date(item.weekdate);
+                    const start = new Date(date.getFullYear(), 0, 1);
+                    const diff = (date - start) + ((start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000);
+                    const oneDay = 1000 * 60 * 60 * 24;
+                    return Math.floor(diff / (oneDay * 7)) + 1;
+                }))].sort((a, b) => a - b);
+                
+                setWeeks(uniqueWeeks);
+            } catch (error) {
+                console.error("Erreur lors de la récupération de l'horaire:", error);
+            }
+        };
+        fetchSchedule();
     }, []);
 
+    // Filtrer les matchs lorsque l'utilisateur sélectionne une semaine
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-    // Gère le changement de la semaine sélectionnée
-    const handleWeekChange = (e) => {
-        setSelectedWeek(e.target.value);
-        setSelectedMatchup('');
-        setMatchupDetails(null);
-        setScores({});
-    };
-
-    // Gère le changement du match sélectionné et récupère les détails
-    const handleMatchupChange = async (e) => {
-        const matchupId = e.target.value;
-        setSelectedMatchup(matchupId);
-        if (matchupId) {
-            try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/matchups/${matchupId}`);
-                if (!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
-                setMatchupDetails(data);
-                // Initialise l'état des scores pour les joueurs du match
-                const initialScores = {};
-                [...data.team1Players, ...data.team2Players].forEach(player => {
-                    initialScores[player.PlayerID] = {
-                        game1: '', game2: '', game3: '',
-                        isAbsent1: false, isAbsent2: false, isAbsent3: false
-                    };
-                });
-                setScores(initialScores);
-            } catch (err) {
-                setError(`Erreur: Impossible de charger les détails du match - ${err.message}`);
-            }
-        } else {
-            setMatchupDetails(null);
+        if (selectedWeek && schedule.length > 0) {
+            const matchups = schedule.filter(item => {
+                const date = new Date(item.weekdate);
+                const start = new Date(date.getFullYear(), 0, 1);
+                const diff = (date - start) + ((start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000);
+                const oneDay = 1000 * 60 * 60 * 24;
+                const weekNum = Math.floor(diff / (oneDay * 7)) + 1;
+                return weekNum === parseInt(selectedWeek);
+            });
+            setMatchupsForWeek(matchups);
+            setSelectedMatchupId(''); // Réinitialiser la sélection de match
+            setPlayers([]); // Vider la liste des joueurs
         }
-    };
+    }, [selectedWeek, schedule]);
 
-    // Gère la modification d'un score
-    const handleScoreChange = (playerId, game, value) => {
+    // Récupérer les détails du match (joueurs) lorsqu'un match est sélectionné
+    useEffect(() => {
+        if (!selectedMatchupId) {
+            setPlayers([]);
+            return;
+        }
+        const fetchMatchupDetails = async () => {
+            try {
+                const response = await fetch(`http://localhost:3000/api/matchups/${selectedMatchupId}`);
+                const data = await response.json();
+
+                // Organiser les joueurs par équipe
+                const teams = {};
+                data.forEach(player => {
+                    if (!teams[player.teamname]) {
+                        teams[player.teamname] = [];
+                    }
+                    teams[player.teamname].push(player);
+                });
+                
+                setPlayers(Object.values(teams).flat());
+            } catch (error) {
+                console.error("Erreur lors de la récupération des détails du match:", error);
+            }
+        };
+        fetchMatchupDetails();
+    }, [selectedMatchupId]);
+
+    // Gérer les changements de score dans les champs de saisie
+    const handleScoreChange = (playerId, gameNumber, value) => {
+        const score = value === '' ? null : parseInt(value, 10);
         setScores(prev => ({
             ...prev,
-            [playerId]: { ...prev[playerId], [game]: value }
+            [`${playerId}-${gameNumber}`]: score,
         }));
     };
 
-    // Gère le changement de la checkbox "absent"
-    const handleAbsentChange = (playerId, gameKey, isChecked) => {
-        setScores(prev => ({
-            ...prev,
-            [playerId]: { ...prev[playerId], [gameKey]: isChecked }
-        }));
-    };
-
-    // Soumet les scores au backend
-
+    // Gérer la soumission du formulaire
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        setSuccessMessage('');
+        if (!selectedMatchupId) {
+            alert("Veuillez sélectionner un match.");
+            return;
+        }
 
+        // Préparer les données de pointage pour l'envoi
+        const scoresToSubmit = players.map((player, index) => {
+            const lineupPosition = (index % 5) + 1; // Position temporaire dans l'alignement
+            return [1, 2, 3].map(gameNumber => ({
+                playerId: player.playerid,
+                gameNumber: gameNumber,
+                score: scores[`${player.playerid}-${gameNumber}`] || 0,
+                isAbsent: (scores[`${player.playerid}-${gameNumber}`] === null), // Marquer comme absent si le score est vide
+                lineupPosition: lineupPosition
+            }));
+        }).flat();
         
-        const scoreData = [
-            ...matchupDetails.team1Players.map((player, index) => ({
-                playerId: player.PlayerID,
-                lineupPosition: index + 1, 
-                ...scores[player.PlayerID]
-            })),
-            ...matchupDetails.team2Players.map((player, index) => ({
-                playerId: player.PlayerID,
-                lineupPosition: index + 1, 
-                ...scores[player.PlayerID]
-            }))
-        ].flatMap(playerData => [
-            { playerId: playerData.playerId, gameNumber: 1, score: parseInt(playerData.game1, 10) || 0, isAbsent: playerData.isAbsent1, lineupPosition: playerData.lineupPosition },
-            { playerId: playerData.playerId, gameNumber: 2, score: parseInt(playerData.game2, 10) || 0, isAbsent: playerData.isAbsent2, lineupPosition: playerData.lineupPosition },
-            { playerId: playerData.playerId, gameNumber: 3, score: parseInt(playerData.game3, 10) || 0, isAbsent: playerData.isAbsent3, lineupPosition: playerData.lineupPosition }
-        ]);
-
-        try {
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/scores/batch`, {
+       /* TO REPLACE WITH UPDATED FETCH METHOD try {
+            const response = await fetch('http://localhost:3000/api/scores/batch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    matchupId: parseInt(selectedMatchup),
-                    scores: scoreData
+                    matchupId: selectedMatchupId,
+                    scores: scoresToSubmit
                 }),
             });
-            if (!response.ok) throw new Error('La soumission des pointages a échoué.');
-            setSuccessMessage('Pointages enregistrés avec succès!');
-        } catch (err) {
-            setError(err.message);
-        }
+
+            if (response.ok) {
+                alert('Pointages enregistrés avec succès!');
+            } else {
+                alert('Erreur lors de la sauvegarde des pointages.');
+            }
+        } catch (error) {
+            console.error("Erreur lors de l'envoi des pointages:", error);
+            alert("Une erreur de communication avec le serveur s'est produite.");
+        }*/
     };
-    
-    // Génère les options pour le sélecteur de semaine
-    const weekOptions = schedule.map(week => (
-        <option key={week.WeekID} value={week.WeekID}>
-            Semaine {new Date(week.WeekDate).toLocaleDateString()}
-        </option>
-    ));
-
-    // Génère les options pour le sélecteur de match en fonction de la semaine
-    const matchupOptions = selectedWeek ? schedule
-        .find(w => w.WeekID === parseInt(selectedWeek))?.matchups
-        .map(m => (
-            <option key={m.MatchupID} value={m.MatchupID}>
-                {m.Team1Name} vs {m.Team2Name}
-            </option>
-        )) : [];
-
-    // Fonction pour rendre les inputs de score pour un joueur
-    const renderPlayerInputs = (player) => (
-        <tr key={player.PlayerID}>
-            <td>{player.PlayerName}</td>
-            {[1, 2, 3].map(gameNum => (
-                <td key={gameNum}>
-                    <input
-                        type="number"
-                        className={styles.scoreInput}
-                        value={scores[player.PlayerID]?.[`game${gameNum}`] || ''}
-                        onChange={(e) => handleScoreChange(player.PlayerID, `game${gameNum}`, e.target.value)}
-                    />
-                    <label className={styles.absentLabel}>
-                        <input
-                            type="checkbox"
-                            checked={scores[player.PlayerID]?.[`isAbsent${gameNum}`] || false}
-                            onChange={(e) => handleAbsentChange(player.PlayerID, `isAbsent${gameNum}`, e.target.checked)}
-                        />
-                        Abs
-                    </label>
-                </td>
-            ))}
-        </tr>
-    );
 
     return (
+        // Conteneur principal pour la page d'administration
         <div className={styles.adminContainer}>
-            <h2>Entrée des Pointages</h2>
-            {error && <p className={styles.errorMessage}>{error}</p>}
-            {successMessage && <p className={styles.successMessage}>{successMessage}</p>}
+            <h1>Saisie des Pointages</h1>
 
-            <form onSubmit={handleSubmit}>
-                <div className={styles.selectors}>
-                    <select value={selectedWeek} onChange={handleWeekChange}>
-                        <option value="">Sélectionner une semaine</option>
-                        {weekOptions}
-                    </select>
-                    {selectedWeek && (
-                        <select value={selectedMatchup} onChange={handleMatchupChange}>
-                            <option value="">Sélectionner un match</option>
-                            {matchupOptions}
-                        </select>
-                    )}
-                </div>
+            <div className={styles.selectionBar}>
+                {/* Sélecteur de semaine */}
+                <select onChange={(e) => setSelectedWeek(e.target.value)} value={selectedWeek}>
+                    <option value="">-- Choisir une semaine --</option>
+                    {weeks.map(week => <option key={week} value={week}>Semaine {week}</option>)}
+                </select>
 
-                {matchupDetails && (
-                    <div className={styles.matchupContainer}>
-                        <h3>{matchupDetails.team1Name}</h3>
-                        <table className={styles.scoreTable}>
-                            <thead><tr><th>Joueur</th><th>Partie 1</th><th>Partie 2</th><th>Partie 3</th></tr></thead>
-                            <tbody>{matchupDetails.team1Players.map(renderPlayerInputs)}</tbody>
-                        </table>
+                {/* Sélecteur de match */}
+                <select onChange={(e) => setSelectedMatchupId(e.target.value)} value={selectedMatchupId} disabled={!selectedWeek}>
+                    <option value="">-- Choisir un match --</option>
+                    {matchupsForWeek.map(match => (
+                        <option key={match.matchupid} value={match.matchupid}>
+                            {match.team1_name} vs {match.team2_name} (Allée {match.lanenumber})
+                        </option>
+                    ))}
+                </select>
+            </div>
 
-                        <h3>{matchupDetails.team2Name}</h3>
-                        <table className={styles.scoreTable}>
-                            <thead><tr><th>Joueur</th><th>Partie 1</th><th>Partie 2</th><th>Partie 3</th></tr></thead>
-                            <tbody>{matchupDetails.team2Players.map(renderPlayerInputs)}</tbody>
-                        </table>
-                        
-                        <button type="submit" className={styles.submitButton}>Enregistrer les pointages</button>
-                    </div>
-                )}
-            </form>
+            {/* Formulaire de saisie des scores, affiché uniquement si des joueurs sont chargés */}
+            {players.length > 0 && (
+                <form onSubmit={handleSubmit} className={styles.scoreForm}>
+                    <table className={styles.scoreTable}>
+                        <thead>
+                            <tr>
+                                <th>Joueur</th>
+                                <th>Équipe</th>
+                                <th>Partie 1</th>
+                                <th>Partie 2</th>
+                                <th>Partie 3</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {players.map(player => (
+                                <tr key={player.playerid}>
+                                    <td>{player.playername}</td>
+                                    <td>{player.teamname}</td>
+                                    {[1, 2, 3].map(gameNumber => (
+                                        <td key={gameNumber}>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="300"
+                                                placeholder="A"
+                                                value={scores[`${player.playerid}-${gameNumber}`] ?? ''}
+                                                onChange={(e) => handleScoreChange(player.playerid, gameNumber, e.target.value)}
+                                            />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <button type="submit" className={styles.submitButton}>Enregistrer les pointages</button>
+                </form>
+            )}
         </div>
     );
-}
+};
 
 export default AdminPage;

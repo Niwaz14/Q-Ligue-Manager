@@ -1,3 +1,32 @@
 .container {
-  padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto; 
+    padding: 2rem;
+    background-color: var(--surface-white);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.header {
+    text-align: center; 
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--accent-red);
+}
+
+.header h1 {
+    margin: 0 0 1rem 0;
+    color: var(--primary-dark);
+}
+
+.weekSelectorContainer {
+    display: inline-block; 
+}
+
+.weekSelector {
+    margin-left: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    font-size: 1rem;
 }

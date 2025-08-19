@@ -75,97 +75,120 @@ app.get('/api/schedule', async function(req, res) {
   }
 });
 
-// Pour les classements des joueurs
 app.get('/api/rankings/:weekId', async (req, res) => {
     try {
         const { weekId } = req.params;
         const handicapBase = 240;
         const handicapFactor = 0.40;
 
-        const rankingsQuery = `
-            WITH PlayerAverages AS (
-                SELECT
-                    p."PlayerID",
-                    COALESCE(AVG(g."GameScore"), 0) AS "Average"
-                FROM "Player" p
-                LEFT JOIN "Game" g ON p."PlayerID" = g."PlayerID"
-                LEFT JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
-                WHERE g."IsAbsent" = FALSE AND m."WeekID" <= $1
-                GROUP BY p."PlayerID"
-            ),
-            Handicaps AS (
-                SELECT
-                    "PlayerID",
-                    GREATEST(0, FLOOR((${handicapBase} - "Average") * ${handicapFactor})) AS "Handicap"
-                FROM PlayerAverages
-            ),
-            GamesWithHandicap AS (
-                SELECT
-                    g."GameID", g."PlayerID", g."MatchupID", g."GameNumber", g."GameScore",
-                    m."WeekID", p."TeamID", h."Handicap",
-                    (g."GameScore" + h."Handicap") AS "ScoreWithHandicap"
-                FROM "Game" g
-                JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
-                JOIN "Player" p ON g."PlayerID" = p."PlayerID"
-                JOIN Handicaps h ON g."PlayerID" = h."PlayerID"
-                WHERE m."WeekID" <= $1
-            ),
-            PlayerMatchupPoints AS (
-                SELECT
-                    g1."PlayerID", g1."MatchupID",
-                    SUM(CASE WHEN g1."ScoreWithHandicap" > g2."ScoreWithHandicap" THEN 1 WHEN g1."ScoreWithHandicap" = g2."ScoreWithHandicap" THEN 0.5 ELSE 0 END) AS "GamePoints"
-                FROM GamesWithHandicap g1
-                JOIN "Matchup" m ON g1."MatchupID" = m."MatchupID"
-                JOIN GamesWithHandicap g2 ON g1."MatchupID" = g2."MatchupID" AND g1."GameNumber" = g2."GameNumber"
-                WHERE ((SELECT "TeamID" FROM "Player" WHERE "PlayerID" = g1."PlayerID") = m."Team1_ID" AND (SELECT "TeamID" FROM "Player" WHERE "PlayerID" = g2."PlayerID") = m."Team2_ID")
-                   OR ((SELECT "TeamID" FROM "Player" WHERE "PlayerID" = g1."PlayerID") = m."Team2_ID" AND (SELECT "TeamID" FROM "Player" WHERE "PlayerID" = g2."PlayerID") = m."Team1_ID")
-                GROUP BY g1."PlayerID", g1."MatchupID"
-            ),
-            PlayerLastWeek AS (
-                SELECT "PlayerID", MAX("WeekID") AS "LastWeekID"
-                FROM GamesWithHandicap WHERE "GameScore" IS NOT NULL GROUP BY "PlayerID"
-            ),
-            LastThreeGames AS (
-                SELECT
-                    g."PlayerID",
-                    MAX(CASE WHEN g."GameNumber" = 1 THEN g."GameScore" END) AS "LastGame1",
-                    MAX(CASE WHEN g."GameNumber" = 2 THEN g."GameScore" END) AS "LastGame2",
-                    MAX(CASE WHEN g."GameNumber" = 3 THEN g."GameScore" END) AS "LastGame3"
-                FROM "Game" g
-                JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
-                JOIN PlayerLastWeek plw ON g."PlayerID" = plw."PlayerID" AND m."WeekID" = plw."LastWeekID"
-                GROUP BY g."PlayerID"
-            )
+       
+        const gamesQuery = `
             SELECT
-                p."PlayerName",
-                t."TeamName",
-                pa."Average",
-                h."Handicap",
-                ltg."LastGame1", ltg."LastGame2", ltg."LastGame3",
-                (ltg."LastGame1" + ltg."LastGame2" + ltg."LastGame3") AS "Triple",
-                (ltg."LastGame1" + ltg."LastGame2" + ltg."LastGame3" + (h."Handicap" * 3)) AS "TripleWithHandicap",
-                (SELECT SUM("GameScore") FROM "Game" g JOIN "Matchup" m ON g."MatchupID" = m."MatchupID" WHERE g."PlayerID" = p."PlayerID" AND g."IsAbsent" = FALSE AND m."WeekID" <= $1) AS "TotalSeasonScore",
-                (SELECT COUNT("GameID") FROM "Game" g JOIN "Matchup" m ON g."MatchupID" = m."MatchupID" WHERE g."PlayerID" = p."PlayerID" AND g."IsAbsent" = FALSE AND m."WeekID" <= $1) AS "TotalGamesPlayed",
-                (SELECT MAX("GameScore") FROM "Game" g JOIN "Matchup" m ON g."MatchupID" = m."MatchupID" WHERE g."PlayerID" = p."PlayerID" AND g."IsAbsent" = FALSE AND m."WeekID" <= $1) AS "HighestSingle",
-                COALESCE((SELECT "GamePoints" FROM PlayerMatchupPoints pmp JOIN "Matchup" m ON pmp."MatchupID" = m."MatchupID" WHERE pmp."PlayerID" = p."PlayerID" AND m."WeekID" = plw."LastWeekID"), 0) AS "WeekPoints",
-                COALESCE((SELECT SUM("GamePoints") FROM PlayerMatchupPoints WHERE "PlayerID" = p."PlayerID"), 0) AS "TotalPoints"
-            FROM "Player" p
-            LEFT JOIN "Team" t ON p."TeamID" = t."TeamID"
-            LEFT JOIN PlayerAverages pa ON p."PlayerID" = pa."PlayerID"
-            LEFT JOIN Handicaps h ON p."PlayerID" = h."PlayerID"
-            LEFT JOIN LastThreeGames ltg ON p."PlayerID" = ltg."PlayerID"
-            LEFT JOIN PlayerLastWeek plw ON p."PlayerID" = plw."PlayerID"
-            ORDER BY pa."Average" DESC;
+                g."PlayerID", p."TeamID", g."MatchupID", m."WeekID",
+                m."Team1_ID", m."Team2_ID", g."LineupPosition",
+                g."GameNumber", g."GameScore", g."IsAbsent"
+            FROM "Game" g
+            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+            JOIN "Player" p ON g."PlayerID" = p."PlayerID"
+            WHERE m."WeekID" <= $1;
         `;
+        const allGames = (await pool.query(gamesQuery, [weekId])).rows;
+        const allPlayersQuery = `SELECT p."PlayerID", p."PlayerName", p."TeamID", t."TeamName" FROM "Player" p LEFT JOIN "Team" t ON p."TeamID" = t."TeamID";`;
+        const allPlayers = (await pool.query(allPlayersQuery)).rows;
 
-        const { rows } = await pool.query(rankingsQuery, [weekId]);
-        res.json(rows);
+        
+        const playerStats = new Map();
+        for (const player of allPlayers) {
+            const gamesPlayed = allGames.filter(g => g.PlayerID === player.PlayerID && !g.IsAbsent);
+            const totalScore = gamesPlayed.reduce((sum, game) => sum + game.GameScore, 0);
+            const average = gamesPlayed.length > 0 ? totalScore / gamesPlayed.length : 150;
+            const handicap = Math.max(0, Math.floor((handicapBase - average) * handicapFactor));
+            playerStats.set(player.PlayerID, { average, handicap });
+        }
+
+        
+        const pointsByMatchup = {};
+        const matchupIds = [...new Set(allGames.map(g => g.MatchupID))];
+        for (const matchupId of matchupIds) {
+            pointsByMatchup[matchupId] = {};
+            const matchupGames = allGames.filter(g => g.MatchupID === matchupId);
+            if (matchupGames.length < 10) continue;
+            const team1Id = matchupGames[0].Team1_ID;
+
+            for (let pos = 1; pos <= 5; pos++) {
+                const p1Games = matchupGames.filter(g => g.LineupPosition === pos && g.TeamID === team1Id);
+                const p2Games = matchupGames.filter(g => g.LineupPosition === pos && g.TeamID !== team1Id);
+
+                if (p1Games.length === 3 && p2Games.length === 3) {
+                    const p1Id = p1Games[0].PlayerID;
+                    const p2Id = p2Games[0].PlayerID;
+                    const p1Stats = playerStats.get(p1Id);
+                    const p2Stats = playerStats.get(p2Id);
+                    let p1Points = 0, p2Points = 0;
+                    let p1TripleHdcp = 0, p2TripleHdcp = 0;
+
+                    for (let i = 1; i <= 3; i++) {
+                        const g1 = p1Games.find(g => g.GameNumber === i);
+                        const g2 = p2Games.find(g => g.GameNumber === i);
+                        const s1 = (g1.IsAbsent ? p1Stats.average : g1.GameScore) + p1Stats.handicap;
+                        const s2 = (g2.IsAbsent ? p2Stats.average : g2.GameScore) + p2Stats.handicap;
+                        if (s1 > s2) p1Points += 1; else if (s1 < s2) p2Points += 1; else { p1Points += 0.5; p2Points += 0.5; }
+                        p1TripleHdcp += s1;
+                        p2TripleHdcp += s2;
+                    }
+                    if (p1TripleHdcp > p2TripleHdcp) p1Points += 1; else if (p1TripleHdcp < p2TripleHdcp) p2Points += 1; else { p1Points += 0.5; p2Points += 0.5; }
+                    pointsByMatchup[matchupId][p1Id] = p1Points;
+                    pointsByMatchup[matchupId][p2Id] = p2Points;
+                }
+            }
+        }
+
+        
+        const rankings = allPlayers.map(player => {
+            const stats = playerStats.get(player.PlayerID);
+            const playerAllGames = allGames.filter(g => g.PlayerID === player.PlayerID);
+            const playerRealGames = playerAllGames.filter(g => !g.IsAbsent);
+            
+            const lastWeekPlayed = Math.max(0, ...playerAllGames.map(g => g.WeekID));
+            const lastMatchupId = playerAllGames.find(g => g.WeekID === lastWeekPlayed)?.MatchupID;
+            const weekPoints = lastMatchupId ? (pointsByMatchup[lastMatchupId]?.[player.PlayerID] || 0) : 0;
+            
+            
+            let totalPoints = 0;
+            const playedMatchupIds = [...new Set(playerAllGames.map(g => g.MatchupID))];
+            for (const mid of playedMatchupIds) {
+                if (pointsByMatchup[mid] && pointsByMatchup[mid][player.PlayerID]) {
+                    totalPoints += pointsByMatchup[mid][player.PlayerID];
+                }
+            }
+            
+            const lastThreeGames = playerAllGames.filter(g => g.WeekID === lastWeekPlayed);
+            const triple = lastThreeGames.length === 3 ? lastThreeGames.reduce((sum, g) => sum + g.GameScore, 0) : null;
+            
+            return {
+                PlayerName: player.PlayerName, TeamName: player.TeamName, Average: stats.average, Handicap: stats.handicap,
+                TotalGamesPlayed: playerRealGames.length,
+                TotalSeasonScore: playerRealGames.reduce((sum, game) => sum + game.GameScore, 0),
+                HighestSingle: playerRealGames.length > 0 ? Math.max(...playerRealGames.map(g => g.GameScore)) : null,
+                LastGame1: lastThreeGames.find(g => g.GameNumber === 1)?.GameScore ?? null,
+                LastGame2: lastThreeGames.find(g => g.GameNumber === 2)?.GameScore ?? null,
+                LastGame3: lastThreeGames.find(g => g.GameNumber === 3)?.GameScore ?? null,
+                Triple: triple,
+                TripleWithHandicap: triple !== null ? triple + (stats.handicap * 3) : null,
+                WeekPoints: weekPoints,
+                TotalPoints: totalPoints,
+            };
+        });
+
+        rankings.sort((a, b) => b.Average - a.Average);
+        res.json(rankings);
 
     } catch (err) {
-        console.error("Erreur pour les classements:", err.message);
+        console.error("Error fetching rankings:", err.message);
         res.status(500).send('Server error');
     }
 });
+
 
 // Pour récupérer les détails d'un seul match, y compris les joueurs et les scores existants
 app.get('/api/matchups/:id', async function(req, res) {
@@ -229,24 +252,33 @@ app.post('/api/scores/batch', async (req, res) => {
     try {
         await client.query('BEGIN');
         const queryText = `
-            INSERT INTO "Game" ("PlayerID", "MatchupID", "LaneID", "GameNumber", "GameScore", "IsAbsent")
-            VALUES ($1, $2, 1, $3, $4, $5)
+            INSERT INTO "Game" ("PlayerID", "MatchupID", "LaneID", "GameNumber", "GameScore", "IsAbsent", "LineupPosition")
+            VALUES ($1, $2, 1, $3, $4, $5, $6)
             ON CONFLICT ("PlayerID", "MatchupID", "GameNumber")
-            DO UPDATE SET "GameScore" = EXCLUDED."GameScore", "IsAbsent" = EXCLUDED."IsAbsent";
+            DO UPDATE SET 
+                "GameScore" = EXCLUDED."GameScore", 
+                "IsAbsent" = EXCLUDED."IsAbsent",
+                "LineupPosition" = EXCLUDED."LineupPosition";
         `;
 
         for (const score of scores) {
-            
-            const params = [score.playerId, matchupId, score.gameNumber, score.score, score.isAbsent];
+            const params = [
+                score.playerId,
+                matchupId,
+                score.gameNumber,
+                score.score,
+                score.isAbsent,
+                score.lineupPosition // The new data point
+            ];
             await client.query(queryText, params);
         }
 
         await client.query('COMMIT');
-        res.status(201).json({ message: 'Changement aux pointages effectué avec succès' });
+        res.status(201).json({ message: 'Scores updated successfully' });
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error('Erreur lors de la mise à jours des pointages', err.message);
-        res.status(500).send('Erreur du serveur lors de la mise à jour des pointages');
+        console.error('Error in batch score update:', err.message);
+        res.status(500).send('Server error');
     } finally {
         client.release();
     }

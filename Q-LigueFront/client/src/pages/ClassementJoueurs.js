@@ -15,7 +15,7 @@ const ClassementJoueurs = () => {
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${week}`);
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Network response was not ok: ${errorText}`);
+                    throw new Error(`Erreur Serveur: ${errorText}`);
                 }
                 const data = await response.json();
                 setRankings(data);
@@ -30,30 +30,41 @@ const ClassementJoueurs = () => {
     }, [week]);
 
     const formatNumber = (value, decimals = 0) => {
-        return typeof value === 'number' && !isNaN(value) ? value.toFixed(decimals) : 'N/A';
+        const num = parseFloat(value);
+        return !isNaN(num) ? num.toFixed(decimals) : 'N/A';
     };
+
+   
 
     const columns = useMemo(
         () => [
-            { accessorKey: 'PlayerName', header: 'Joueur', size: 200 },
+            
+            {
+                id: 'ranking',
+                header: 'Pos',
+                Cell: ({ row }) => row.index + 1,
+                size: 60,
+            },
             { accessorKey: 'TeamName', header: 'Équipe' },
-            { accessorKey: 'Average', header: 'Moy', Cell: ({ cell }) => formatNumber(cell.getValue(), 2) },
-            { accessorKey: 'LastGame1', header: 'G1', Cell: ({ cell }) => formatNumber(cell.getValue()) },
-            { accessorKey: 'LastGame2', header: 'G2', Cell: ({ cell }) => formatNumber(cell.getValue()) },
-            { accessorKey: 'LastGame3', header: 'G3', Cell: ({ cell }) => formatNumber(cell.getValue()) },
+            { accessorKey: 'PlayerName', header: 'Joueur', size: 180 },
+            { accessorKey: 'LastGame1', header: 'G1', size: 60, Cell: ({ cell }) => formatNumber(cell.getValue()) },
+            { accessorKey: 'LastGame2', header: 'G2', size: 60, Cell: ({ cell }) => formatNumber(cell.getValue()) },
+            { accessorKey: 'LastGame3', header: 'G3', size: 60, Cell: ({ cell }) => formatNumber(cell.getValue()) },
             { accessorKey: 'Triple', header: 'Triple', Cell: ({ cell }) => formatNumber(cell.getValue()) },
             { accessorKey: 'TripleWithHandicap', header: 'Triple Hdcp', Cell: ({ cell }) => formatNumber(cell.getValue()) },
-            { accessorKey: 'TotalSeasonScore', header: 'Quilles Saison' },
-            { accessorKey: 'TotalGamesPlayed', header: 'Parties Jouées' },
+            { accessorKey: 'TotalSeasonScore', header: 'Total Quilles' },
+            { accessorKey: 'TotalGamesPlayed', header: 'Parties' },
             { accessorKey: 'Handicap', header: 'Hdcp', Cell: ({ cell }) => formatNumber(cell.getValue()) },
+            { accessorKey: 'PriceMoney', header: 'Bourse', Cell: ({ cell }) => `$${formatNumber(cell.getValue(), 2)}` },
             { accessorKey: 'HighestSingle', header: 'Simple Max' },
+            { accessorKey: 'HighestTriple', header: 'Triple Max' },
             { accessorKey: 'WeekPoints', header: 'Pts Sem' },
             { accessorKey: 'TotalPoints', header: 'Pts Saison' },
         ],
         [],
     );
 
-    if (error) return <div>Erreur: {error}</div>;
+    if (error) return <div style={{ padding: '1rem' }}>Erreur: {error}</div>;
 
     return (
         <div style={{ padding: '1rem' }}>

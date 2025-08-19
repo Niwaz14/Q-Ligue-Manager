@@ -79,15 +79,28 @@ function AdminPage() {
     };
 
     // Soumet les scores au backend
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccessMessage('');
 
-        const scoreData = Object.entries(scores).flatMap(([playerId, games]) => [
-            { playerId: parseInt(playerId), gameNumber: 1, score: parseInt(games.game1, 10) || 0, isAbsent: games.isAbsent1 },
-            { playerId: parseInt(playerId), gameNumber: 2, score: parseInt(games.game2, 10) || 0, isAbsent: games.isAbsent2 },
-            { playerId: parseInt(playerId), gameNumber: 3, score: parseInt(games.game3, 10) || 0, isAbsent: games.isAbsent3 }
+        
+        const scoreData = [
+            ...matchupDetails.team1Players.map((player, index) => ({
+                playerId: player.PlayerID,
+                lineupPosition: index + 1, 
+                ...scores[player.PlayerID]
+            })),
+            ...matchupDetails.team2Players.map((player, index) => ({
+                playerId: player.PlayerID,
+                lineupPosition: index + 1, 
+                ...scores[player.PlayerID]
+            }))
+        ].flatMap(playerData => [
+            { playerId: playerData.playerId, gameNumber: 1, score: parseInt(playerData.game1, 10) || 0, isAbsent: playerData.isAbsent1, lineupPosition: playerData.lineupPosition },
+            { playerId: playerData.playerId, gameNumber: 2, score: parseInt(playerData.game2, 10) || 0, isAbsent: playerData.isAbsent2, lineupPosition: playerData.lineupPosition },
+            { playerId: playerData.playerId, gameNumber: 3, score: parseInt(playerData.game3, 10) || 0, isAbsent: playerData.isAbsent3, lineupPosition: playerData.lineupPosition }
         ]);
 
         try {

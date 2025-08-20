@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './AdminLoginPage.module.css';
+import { useAuth } from '../context/AuthContext';
 
 function AdminLoginPage() {
     
     const [accessCode, setAccessCode] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { login } = useAuth();
 
     
     const handleSubmit = async (e) => {
@@ -22,10 +24,10 @@ function AdminLoginPage() {
             const data = await response.json();
 
             if (data.success) {
-                sessionStorage.setItem('isAdminAuthenticated', 'true');
+                login();
                 
                 window.dispatchEvent(new Event('authChange')); 
-                navigate('/admin/dashboard');
+                navigate('/admin');
             } else {
                 setError(`Code d'accès invalide.`);
                 setAccessCode('');

@@ -1,29 +1,22 @@
-
-// Installation de DotEnv pour aider à gérer les variables d'environnement
-
-require('dotenv').config(); //Rendre les variables d'environnement disponibles.
-
-
+require('dotenv').config();
 const express = require('express');
-const pool = require('./db.js'); //Connexion à la base de données PostgreSQL
-const app = express(); // Importer le module express et créer une instance de l'application
-const cors = require('cors'); // Importer le module CORS pour gérer les requêtes cross-origin
-app.use(cors()); // Utiliser CORS pour permettre les requêtes depuis d'autres origines
-app.use(express.json()); // Middleware pour analyser les requêtes JSON
-const port = 3000; // Définir le port sur lequel le serveur écoutera
+const pool = require('./db.js');
+const app = express();
+const cors = require('cors');
+app.use(cors());
+app.use(express.json());
+const port = 3000;
 
-// |------------------------------------------------------------------------ GET API Endpoint ------------------------------------------------------------------------|
+// --- GET API Endpoints ---
 
-app.get('/', function(req, res) {
-  res.send('Salut, Q-Ligue Manager! Le serveur fonctionne!'); // Définir une route pour la racine qui envoie une réponse simple
+app.get('/', (req, res) => {
+  res.send('Salut, Q-Ligue Manager! Le serveur fonctionne!');
 });
 
 
-
-
-// On fait un point d'entrée pour récupérer les équipes
-app.get('/api/teams', async function(req, res) {
-  try {    const allTeams = await pool.query('SELECT * FROM "Team"'); 
+app.get('/api/teams', async (req, res) => {
+  try {
+    const allTeams = await pool.query('SELECT * FROM "Team"');
     res.json(allTeams.rows);
   } catch (err) {
     console.error(err.message);
@@ -31,45 +24,72 @@ app.get('/api/teams', async function(req, res) {
   }
 });
 
-// On fait un point d'entrée pour récupérer les joueurs
-app.get('/api/players', async function(req, res) {
-  try {
-    
-    const allPlayers = await pool.query('SELECT * FROM Player');
-    res.json(allPlayers.rows);
 
+app.get('/api/players', async (req, res) => {
+  try {
+    const allPlayers = await pool.query('SELECT * FROM "Player"');
+    res.json(allPlayers.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Erreur du serveur lors de la récupération des joueurs');
   }
 });
 
+
 // Pour avoir l'horaire par semaine
 app.get('/api/schedule', async function(req, res) {
   try {
-    const schedule = await pool.query(`
+    
+    const scheduleQuery = `
       SELECT
-        m.MatchupID,  -- LA LIGNE MANQUANTE À AJOUTER
-        w.WeekDate,
-        t1.TeamName AS Team1_Name, 
-        t2.TeamName AS Team2_Name,
-        l.LaneNumber
-      FROM Matchup m
-      JOIN Week w ON m.WeekID = w.WeekID
-      JOIN Team t1 ON m.Team1_ID = t1.TeamID
-      JOIN Team t2 ON m.Team2_ID = t2.TeamID
-      JOIN Lane l ON m.LaneID = l.LaneID
-      ORDER BY w.WeekDate;
-    `);
-
+        m."MatchupID",
+        w."WeekDate" as weekdate,
+        t1."TeamName" AS team1_name, 
+        t2."TeamName" AS team2_name
+      FROM "Matchup" m
+      JOIN "Week" w ON m."WeekID" = w."WeekID"
+      JOIN "Team" t1 ON m."Team1_ID" = t1."TeamID"
+      JOIN "Team" t2 ON m."Team2_ID" = t2."TeamID"
+      ORDER BY w."WeekDate";
+    `;
+    const schedule = await pool.query(scheduleQuery);
     res.json(schedule.rows);
-
   } catch (err) {
-    console.error(err.message);
+    console.error("Erreur du serveur lors de la récupération de l'horaire:", err.message);
     res.status(500).send("Erreur du serveur lors de la récupération de l'horaire");
   }
 });
 
+// Pour récupérer les détails d'un seul match, y compris les joueurs et les scores existants
+app.get('/api/matchups/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // THE FIX: Added double quotes and lowercase aliases for consistency
+    const query = `
+      SELECT
+        p."PlayerID" AS playerid,
+        p."PlayerName" AS playername,
+        t."TeamName" AS teamname, 
+        g."GameScore" AS gamescore,
+        g."GameNumber" AS gamenumber
+      FROM "Player" p
+      JOIN "Team" t ON p."TeamID" = t."TeamID" 
+      LEFT JOIN "Game" g ON p."PlayerID" = g."PlayerID" AND g."MatchupID" = $1
+      WHERE p."TeamID" IN (
+        (SELECT "Team1_ID" FROM "Matchup" WHERE "MatchupID" = $1),
+        (SELECT "Team2_ID" FROM "Matchup" WHERE "MatchupID" = $1)
+      );
+    `;
+
+    const playersAndScores = await pool.query(query, [id]);
+    res.json(playersAndScores.rows);
+
+  } catch (err) {
+    console.error(`Erreur sur /api/matchups/${req.params.id}: ${err.message}`);
+    res.status(500).send("Server Error");
+  }
+});
 // Point d'entrée pour le classement des joueurs
 app.get('/api/rankings/:weekId', async (req, res) => {
     try {
@@ -213,35 +233,7 @@ app.get('/api/rankings/:weekId', async (req, res) => {
 });
 
 
-// Pour récupérer les détails d'un seul match, y compris les joueurs et les scores existants
-app.get('/api/matchups/:id', async function(req, res) {
-  try {
-    const { id } = req.params; // Récupère l'ID du match depuis l'URL
 
-    const query = `
-      SELECT
-        p.PlayerID,
-        p.PlayerName,
-        t.TeamName, 
-        g.GameScore,
-        g.GameNumber
-      FROM Player p
-      JOIN Team t ON p.TeamID = t.TeamID 
-      LEFT JOIN Game g ON p.PlayerID = g.PlayerID AND g.MatchupID = $1
-      WHERE p.TeamID IN (
-        (SELECT Team1_ID FROM Matchup WHERE MatchupID = $1),
-        (SELECT Team2_ID FROM Matchup WHERE MatchupID = $1)
-      );
-    `;
-
-    const playersAndScores = await pool.query(query, [id]);
-    res.json(playersAndScores.rows);
-
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
-  }
-});
 
 // |------------------------------------------------------------------------  GET ENDPOINTS API FIN ------------------------------------------------------------------------|
 
@@ -265,6 +257,46 @@ app.post('/api/games', async function(req, res) {
     console.error(err.message);
     res.status(500).send("Erreur du serveur lors de l'envoi de la partie");
   }
+});
+
+// Route pour enregistrer ou mettre à jour un alignement pour un match
+app.post('/api/lineup', async (req, res) => {
+    const { matchupId, team1PlayerIds, team2PlayerIds } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // D'abord, supprimer les anciens enregistrements de parties pour ce match pour éviter les doublons
+        await client.query('DELETE FROM "Game" WHERE "MatchupID" = $1', [matchupId]);
+
+        // Ensuite, insérer les nouveaux enregistrements pour l'alignement
+        const allPlayerIds = [
+            ...team1PlayerIds.map((id, index) => ({ playerId: id, lineupPosition: index + 1 })),
+            ...team2PlayerIds.map((id, index) => ({ playerId: id, lineupPosition: index + 1 }))
+        ];
+
+        const queryText = `
+            INSERT INTO "Game" ("PlayerID", "MatchupID", "GameNumber", "GameScore", "IsAbsent", "LineupPosition", "LaneID")
+            VALUES ($1, $2, $3, 0, false, $4, 1)
+        `;
+
+        for (const player of allPlayerIds) {
+            // Créer 3 enregistrements de partie pour chaque joueur dans l'alignement
+            for (let gameNumber = 1; gameNumber <= 3; gameNumber++) {
+                await client.query(queryText, [player.playerId, matchupId, gameNumber, player.lineupPosition]);
+            }
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Alignement enregistré avec succès.' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("Erreur lors de l'enregistrement de l'alignement:", err.message);
+        res.status(500).send('Server error');
+    } finally {
+        client.release();
+    }
 });
 
 // Route pour enregistrer les pointages en batch

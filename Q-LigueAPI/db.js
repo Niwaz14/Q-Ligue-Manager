@@ -5,8 +5,8 @@ require('dotenv').config(); //Rendre les variables d'environnement disponibles.
 const pg = require('pg'); // On va chercher  le module pg pour interagir avec PostgreSQL.
 const Pool = pg.Pool; // On met en constante la classe Pool de pg, qui nous permet de gérer les connexions à la base de données.
 
-// 3. Create a new instance of the Pool
-// It will use the variables from our .env file to know how to connect.
+
+
 const pool = new Pool({ // On initialise une nouvelle instance de Pool.
   user: process.env.DB_USER, // On load les variables d'environnement pour la connexion à la base de données.
   host: process.env.DB_HOST,

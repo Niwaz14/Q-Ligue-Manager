@@ -1,113 +1,144 @@
-
-.formContainer {
-  max-width: 600px;
-  margin: 2rem auto;
-  padding: 2rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  background-color: #f9f9f9;
+/* --- Main Container --- */
+.adminContainer {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: var(--surface-white);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
 }
 
-.formGroup {
-  margin-bottom: 1.5rem;
+.adminContainer h1 {
+    text-align: center;
+    color: var(--primary-dark);
+    margin-bottom: 2rem;
 }
 
-.formGroup label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
+/* --- Week and Matchup Selection Bar --- */
+.selectionBar {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
 }
 
-.formGroup select {
-  width: 100%;
-  padding: 0.5rem;
-  font-size: 1rem;
-  border-radius: 4px;
-  border: 1px solid #ccc;
+.selectionBar select {
+    padding: 0.75rem;
+    font-size: 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-white);
+    min-width: 300px;
+}
+
+/* --- Lineup Selection --- */
+.lineupContainer {
+    margin-top: 2rem;
+    padding: 2rem;
+    background-color: #f8f9fa; /* A slightly off-white for sections */
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.lineupContainer h2 {
+    text-align: center;
+    margin-top: 0;
+    color: var(--primary-dark);
+}
+
+.rosterColumns {
+    display: flex;
+    justify-content: space-around;
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.roster {
+    width: 45%;
+}
+
+.roster h3 {
+    border-bottom: 2px solid var(--accent-red);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.roster div {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.roster label {
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.roster input[type="checkbox"] {
+    transform: scale(1.2); /* Make checkboxes a bit bigger */
+    accent-color: var(--primary-medium);
+}
+
+/* --- Score Entry Table --- */
+.scoreForm {
+    margin-top: 2rem;
+}
+
+.scoreForm h2 {
+    text-align: center;
+    color: var(--primary-dark);
+}
+
+.scoreTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.scoreTable th, .scoreTable td {
+    padding: 0.75rem;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.scoreTable th {
+    background-color: var(--primary-dark);
+    color: var(--text-light);
+}
+
+.scoreTable td input {
+    width: 80px;
+    padding: 0.5rem;
+    font-size: 1rem;
+    text-align: center;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    -moz-appearance: textfield; /* Firefox */
+}
+.scoreTable input::-webkit-outer-spin-button,
+.scoreTable input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 
-.scoresSection {
-  margin-top: 2rem;
-  border-top: 1px solid #ccc;
-  padding-top: 1.5rem;
-}
-
-
-.scoreInput {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-
-.scoreInput label {
-  font-weight: normal;
-  margin-right: 1rem;
-}
-
-
-.scoreInput input {
-  width: 80px;
-  padding: 0.5rem;
-  font-size: 1rem;
-  text-align: right;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-
+/* --- Submit Button --- */
 .submitButton {
-  display: block;
-  width: 100%;
-  padding: 0.75rem;
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: white;
-  background-color: #28a745; 
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 1.5rem;
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--text-light);
+    background-color: var(--accent-red); 
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 1.5rem;
+    transition: filter 0.2s;
 }
-
 
 .submitButton:hover {
-  background-color: #218838;
-}
-
-.scoreInputField {
-
-  -webkit-appearance: none;
-  margin: 0 0 0 5px; 
-  width: 60px; 
-  padding: 0.5rem;
-  font-size: 1rem;
-  text-align: right;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-.scoreInputField[type=number] {
-  -moz-appearance: textfield;
-}
-
-.teamSection {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-}
-
-.teamSection h4 {
-  margin-top: 0;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 0.5rem;
-}
-
-
-.invalidScore {
-  border-color: red;
-  background-color: #fff0f0;
+    filter: brightness(90%);
 }

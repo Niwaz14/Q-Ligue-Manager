@@ -1,15 +1,13 @@
-@import '../App.css';
 
-.container {
-    width: 95%;
-    max-width: 1200px;
-    margin: 2rem auto;
+.scheduleContainer {
+    max-width: 1400px;
+    margin: 0 auto;
     padding: 2rem;
     background-color: var(--surface-white);
     border-radius: 8px;
-    box-shadow: 0 4px 8px var(--box-shadow-light);
-    font-family: 'Arial', sans-serif;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
 }
+
 
 .header {
     text-align: center;
@@ -19,99 +17,45 @@
 }
 
 .header h1 {
-    margin: 0 0 1rem 0;
+    margin: 0;
     color: var(--primary-dark);
-    font-size: 2.5em;
 }
 
-.weekSelectorContainer {
-    display: inline-block;
+.weekBlock {
+    margin-bottom: 2rem; 
 }
 
-.weekSelectorContainer label {
-    font-size: 1.1em;
-    margin-right: 10px;
-    color: var(--text-light-gray);
+
+.scheduleTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
 }
 
-.weekSelector {
-    margin-left: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    border: 1px solid var(--border-color);
-    font-size: 1rem;
-    background-color: var(--surface-white);
-    color: var(--text-dark);
-    cursor: pointer;
+.scheduleTable th, .scheduleTable td {
+  padding: 12px 15px; 
+  text-align: left;
+  border-bottom: 1px solid #ddd; 
 }
 
-.weekBlock, .upcomingBlock {
-    margin-bottom: 30px;
+.scheduleTable th {
+  background-color: #f8f8f8; 
+  font-weight: bold;
+  color: var(--primary-dark);
 }
 
-.weekBlock h2, .upcomingBlock h2 {
-    font-size: 1.8em;
-    color: var(--table-header-bg);
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #ddd;
+
+.scheduleTable tbody tr:last-child td {
+    border-bottom: none;
 }
 
-.scheduleTable, .upcomingTable {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    box-shadow: 0 2px 8px var(--box-shadow-medium);
-}
-
-.scheduleTable th, .upcomingTable th {
-    background-color: var(--table-header-bg);
-    color: var(--table-header-text);
-    padding: 12px 15px;
-    text-align: left;
-    font-weight: bold;
-    text-transform: uppercase;
-    font-size: 0.9em;
-}
-
-.scheduleTable td, .upcomingTable td {
-    border: 1px solid #ddd;
-    padding: 12px 15px;
-    text-align: left;
-}
-
-.scheduleTable tr:nth-child(even), .upcomingTable tr:nth-child(even) {
-    background-color: var(--table-row-even);
-}
-
-.scheduleTable tr:hover, .upcomingTable tr:hover {
-    background-color: var(--table-row-hover);
-}
 
 .teamName {
-    font-weight: bold;
+    font-weight: 500;
 }
 
 .vs {
-    color: var(--text-medium-gray);
-    font-style: italic;
-}
-
-
-@media (max-width: 768px) {
-    .container {
-        padding: 1rem;
-        margin: 1rem auto;
-    }
-    .header h1 {
-        font-size: 2em;
-    }
-
-    .scheduleTable th,
-    .scheduleTable td,
-    .upcomingTable th,
-    .upcomingTable td {
-        padding: 8px 10px;
-        font-size: 0.8em;
-    }
+    font-weight: bold;
+    color: var(--accent-red);
+    text-align: center;
 }

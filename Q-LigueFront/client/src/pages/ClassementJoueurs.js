@@ -6,35 +6,65 @@ const ClassementJoueurs = () => {
     const [rankings, setRankings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [week, setWeek] = useState(1); 
+    const [weeks, setWeeks] = useState([]);
+    const [selectedWeek, setSelectedWeek] = useState('');
 
     useEffect(() => {
+        const fetchSchedule = async () => {
+            try {
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
+                const data = await response.json();
+                const uniqueDates = [...new Set(data.map(item => item.weekdate))].sort((a, b) => new Date(a) - new Date(b));
+                
+                const weekData = uniqueDates.map((date, i) => ({
+                    number: i + 1,
+                    date: new Date(date).toLocaleDateString('fr-CA'),
+                }));
+                setWeeks(weekData);
+                if (weekData.length > 0) {
+                    
+                    const responseRankings = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${weekData.length}`);
+                    const latestRankings = await responseRankings.json();
+                    const latestWeekWithGames = latestRankings.some(p => p.TotalGamesPlayed > 0) ? weekData.length : weekData.length - 1;
+                    setSelectedWeek(String(latestWeekWithGames > 0 ? latestWeekWithGames : 1));
+                }
+            } catch (error) {
+                console.error("Error fetching schedule:", error);
+                setError("Could not load schedule data.");
+            }
+        };
+        fetchSchedule();
+    }, []);
+
+    useEffect(() => {
+        if (!selectedWeek) return;
+
         const fetchRankings = async () => {
             setLoading(true);
             setError(null);
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${week}`);
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${selectedWeek}`);
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Erreur: ${errorText}`);
+                    throw new Error(`Erreur du serveur: ${errorText}`);
                 }
                 const data = await response.json();
                 setRankings(data);
             } catch (error) {
-                console.error("Erreur:", error);
+                console.error("Erreur de chargement du classement:", error);
                 setError(error.message);
             } finally {
                 setLoading(false);
             }
         };
         fetchRankings();
-    }, [week]);
+    }, [selectedWeek]);
 
     const columns = useMemo(
         () => [
             {
                 id: 'ranking',
-                header: 'Pos',
+                header: 'Position',
                 Cell: ({ row }) => row.index + 1,
                 size: 60,
             },
@@ -47,12 +77,13 @@ const ClassementJoueurs = () => {
                 size: 100,
             },
             { accessorKey: 'TotalGamesPlayed', header: 'P.J.' },
-            { accessorKey: 'Handicap', header: 'HCP' },
+            { accessorKey: 'Handicap', header: 'HDCP' },
+            { accessorKey: 'TotalSeasonScore', header: 'Quilles Abattues' },
             { accessorKey: 'HighestSingle', header: 'Simple Max' },
             { accessorKey: 'HighestTriple', header: 'Série Max' },
             {
                 accessorKey: 'LastGame1',
-                header: 'P 1',
+                header: 'P1',
                 Cell: ({ cell }) => {
                     const { score, isAbsent } = cell.getValue();
                     if (score === null) return '';
@@ -61,7 +92,7 @@ const ClassementJoueurs = () => {
             },
             {
                 accessorKey: 'LastGame2',
-                header: 'P 2',
+                header: 'P2',
                 Cell: ({ cell }) => {
                     const { score, isAbsent } = cell.getValue();
                     if (score === null) return '';
@@ -70,7 +101,7 @@ const ClassementJoueurs = () => {
             },
             {
                 accessorKey: 'LastGame3',
-                header: 'P 3',
+                header: 'P3',
                 Cell: ({ cell }) => {
                     const { score, isAbsent } = cell.getValue();
                     if (score === null) return '';
@@ -89,7 +120,7 @@ const ClassementJoueurs = () => {
             },
             {
                 accessorKey: 'TripleWithHandicap',
-                header: 'Série HCP',
+                header: 'Série HDCP',
                 Cell: ({ row }) => {
                     const games = [row.original.LastGame1, row.original.LastGame2, row.original.LastGame3];
                     const playedGames = games.filter(g => g.score !== null && !g.isAbsent);
@@ -113,9 +144,11 @@ const ClassementJoueurs = () => {
                 <h1>Classement des Joueurs</h1>
                 <div className={styles.weekSelectorContainer}>
                     <label htmlFor="week-selector">Semaine: </label>
-                    <select id="week-selector" value={week} onChange={e => setWeek(e.target.value)} className={styles.weekSelector}>
-                        {[...Array(36).keys()].map(i => (
-                            <option key={i + 1} value={i + 1}>{i + 1}</option>
+                    <select id="week-selector" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className={styles.weekSelector}>
+                        {weeks.map(weekInfo => (
+                            <option key={weekInfo.number} value={weekInfo.number}>
+                                Semaine {weekInfo.number} ({weekInfo.date})
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -125,7 +158,31 @@ const ClassementJoueurs = () => {
                 columns={columns}
                 data={rankings}
                 state={{ isLoading: loading }}
-                initialState={{ density: 'compact' }}
+                initialState={{
+                    density: 'compact',
+                    pagination: { pageSize: 120, pageIndex: 0 },
+                }}
+                muiTableHeadCellProps={{
+                    sx: {
+                        backgroundColor: '#3b658f',
+                        color: '#ffffff',
+                        padding: '8px',
+                    },
+                }}
+                muiTableBodyRowProps={({ row, table }) => {
+                    const { rows } = table.getRowModel();
+                    const rowIndex = rows.findIndex(r => r.id === row.id);
+                    return {
+                        sx: {
+                            backgroundColor: rowIndex % 2 === 0 ? '#f0f2f5' : '#ffffff',
+                        },
+                    };
+                }}
+                muiTableBodyCellProps={{
+                    sx: {
+                        padding: '2px 4px',
+                    },
+                }}
             />
         </div>
     );

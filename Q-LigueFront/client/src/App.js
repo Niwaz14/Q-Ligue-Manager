@@ -31,9 +31,9 @@ const AppLayout = () => {
           <Route path="/classement-equipes" element={<ClassementEquipe />} />
           <Route path="/horaire" element={<Horaire />} />
           <Route path="/bourses" element={<Bourses />} />
-          <Route path="/admin-login" element={<AdminLoginPage />} />
+          <Route path="/admin" element={<AdminLoginPage />} />
           <Route 
-            path="/admin" 
+            path="/admin/dashboard" 
             element={
               <ProtectedRoute>
                 <AdminPage />
@@ -49,11 +49,11 @@ const AppLayout = () => {
             {/* --- UPDATED BUTTON LOGIC --- */}
             {isAuthenticated ? (
               <>
-                <Link to="/admin" className="footer-button">Admin</Link>
+                <Link to="/admin/dashboard" className="footer-button">Admin</Link>
                 <button onClick={handleLogout} className="footer-button">Déconnexion</button>
               </>
             ) : (
-              <Link to="/admin-login" className="footer-button">Admin</Link>
+              <Link to="/admin" className="footer-button">Admin</Link>
             )}
           </div>
           <p className="copyright-text">

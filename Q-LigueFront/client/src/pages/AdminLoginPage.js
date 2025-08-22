@@ -27,7 +27,7 @@ function AdminLoginPage() {
                 login();
                 
                 window.dispatchEvent(new Event('authChange')); 
-                navigate('/admin');
+                navigate('/admin/dashboard');
             } else {
                 setError(`Code d'accès invalide.`);
                 setAccessCode('');

@@ -1,10 +1,18 @@
 .container {
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 95%;
+    max-width: 1800px;
+    margin: 2rem auto;
     padding: 2rem;
     background-color: var(--surface-white);
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+        margin: 1rem auto;
+    }
 }
 
 .header {
@@ -31,4 +39,10 @@
     font-size: 1rem;
     background-color: var(--surface-white);
     color: var(--text-dark);
+}
+
+.error {
+    color: var(--accent-red);
+    text-align: center;
+    font-size: 1.2rem;
 }

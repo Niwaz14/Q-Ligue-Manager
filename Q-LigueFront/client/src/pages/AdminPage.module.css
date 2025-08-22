@@ -1,4 +1,4 @@
-/* --- Main Container --- */
+/* --- Conteneur principal --- */
 .adminContainer {
     max-width: 1200px;
     margin: 2rem auto;
@@ -14,7 +14,7 @@
     margin-bottom: 2rem;
 }
 
-/* --- Week and Matchup Selection Bar --- */
+/* --- Sélecteur Semaine --- */
 .selectionBar {
     display: flex;
     gap: 1rem;
@@ -31,11 +31,11 @@
     min-width: 300px;
 }
 
-/* --- Lineup Selection --- */
+/* --- Sélecteur de lineup --- */
 .lineupContainer {
     margin-top: 2rem;
     padding: 2rem;
-    background-color: #f8f9fa; /* A slightly off-white for sections */
+    background-color: #f8f9fa; 
     border-radius: 8px;
     border: 1px solid var(--border-color);
 }
@@ -76,11 +76,11 @@
 }
 
 .roster input[type="checkbox"] {
-    transform: scale(1.2); /* Make checkboxes a bit bigger */
+    transform: scale(1.2); 
     accent-color: var(--primary-medium);
 }
 
-/* --- Score Entry Table --- */
+/* --- Table score --- */
 .scoreForm {
     margin-top: 2rem;
 }
@@ -114,7 +114,7 @@
     text-align: center;
     border-radius: 4px;
     border: 1px solid var(--border-color);
-    -moz-appearance: textfield; /* Firefox */
+    -moz-appearance: textfield; /* Ajustement pour les naviguateur Firefox */
 }
 .scoreTable input::-webkit-outer-spin-button,
 .scoreTable input::-webkit-inner-spin-button {
@@ -123,22 +123,141 @@
 }
 
 
-/* --- Submit Button --- */
+/* --- Bouton soumettre  --- */
 .submitButton {
     display: block;
     width: 100%;
     padding: 0.75rem;
     font-size: 1.1rem;
     font-weight: bold;
-    color: var(--text-light);
-    background-color: var(--accent-red); 
+    color: var(--text-light); 
+    background-color: var(--accent-blue); 
     border: none;
     border-radius: 4px;
     cursor: pointer;
     margin-top: 1.5rem;
     transition: filter 0.2s;
+    text-decoration: none; 
+    text-align: center; 
 }
 
 .submitButton:hover {
     filter: brightness(90%);
+}
+
+
+
+.lineupContainer {
+    margin-top: 2rem;
+    padding: 2rem;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.lineupContainer h2 {
+    text-align: center;
+    margin-top: 0;
+    color: var(--primary-dark);
+}
+.rosterColumns {
+    display: flex;
+    flex-direction: column; 
+    gap: 2.5rem; 
+    margin: 2rem 0;
+}
+.roster {
+    width: 100%; 
+}
+.roster h3 {
+    border-bottom: 2px solid var(--accent-red);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+.playerCard {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+.playerCard:hover {
+    background-color: #f0f2f5;
+}
+.playerCard input[type="checkbox"] {
+    transform: scale(1.3);
+    accent-color: var(--primary-medium);
+}
+.playerCard label {
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+.playerName {
+    font-weight: 500;
+}
+.playerStats {
+    font-size: 0.85rem;
+    color: #555;
+}
+.scoreForm {
+    margin-top: 2rem;
+}
+.scoreForm h2 {
+    text-align: center;
+    color: var(--primary-dark);
+}
+.instructionText {
+    text-align: center;
+    margin-bottom: 1.5rem; 
+    color: #555; 
+    font-style: italic;
+}
+.editLineupButton {
+    display: block;
+    margin: 0 auto 1rem auto;
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-medium);
+    color: var(--text-light);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.scoreTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+.scoreTable th, .scoreTable td {
+    padding: 0.75rem;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+.scoreTable th {
+    background-color: var(--primary-dark);
+    color: var(--text-light);
+}
+.scoreCell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+.scoreInput {
+    width: 60px !important;
+    padding: 0.5rem;
+    font-size: 1rem;
+    text-align: center;
+}
+.absentLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.absentCheckbox {
+    transform: scale(1.1);
+    cursor: pointer;
 }

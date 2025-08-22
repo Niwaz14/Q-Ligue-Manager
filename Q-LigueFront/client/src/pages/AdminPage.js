@@ -1,268 +1,332 @@
 import React, { useState, useEffect } from 'react';
-// Importer le CSS module pour la page d'administration
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import styles from './AdminPage.module.css';
 
+
+const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handleAbsenceChange, isLoading }) => (
+    <div className={styles.roster}>
+        <h3>{team.name}</h3>
+        <Droppable droppableId={String(team.id)}>
+            {(provided) => (
+                <table className={styles.scoreTable} {...provided.droppableProps} ref={provided.innerRef}>
+                    <thead>
+                        <tr>
+                            <th style={{ width: '40px' }}>#</th>
+                            <th>Joueur</th>
+                            <th>Partie 1</th>
+                            <th>Partie 2</th>
+                            <th>Partie 3</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {team.lineup.map((player, index) => (
+                            <Draggable key={player.playerId} draggableId={String(player.playerId)} index={index}>
+                                {(provided, snapshot) => (
+                                    <tr
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        className={snapshot.isDragging ? styles.dragging : ''}
+                                    >
+                                        <td>{index + 1}</td>
+                                        <td>
+                                            <span className={styles.playerName}>{player.playerName} <br/> </span>
+                                            <span className={styles.playerStats}>
+                                                Moy: {player.previousWeekAvg ? player.previousWeekAvg.toFixed(2) : 'N/A'}, 
+                                                Hcp: {player.previousWeekHcp ? player.previousWeekHcp : 'N/A'}
+                                            </span>
+                                        </td>
+                                        {[1, 2, 3].map(gameNumber => {
+                                            const key = `${player.playerId}-${gameNumber}`;
+                                            const data = gameData[key] || { score: '', isAbsent: false };
+                                            return (
+                                                <td key={gameNumber}>
+                                                    <div className={styles.scoreCell}>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="300"
+                                                            className={styles.scoreInput}
+                                                            value={data.score}
+                                                            onChange={(e) => handleScoreChange(player.playerId, gameNumber, e.target.value)}
+                                                            disabled={data.isAbsent || isLoading}
+                                                        />
+                                                        <label className={styles.absentLabel}>
+                                                            <input
+                                                                type="checkbox"
+                                                                className={styles.absentCheckbox}
+                                                                checked={data.isAbsent}
+                                                                onChange={(e) => handleAbsenceChange(player.playerId, gameNumber, e.target.checked)}
+                                                                disabled={isLoading}
+                                                            />
+                                                            Absent
+                                                        </label>
+                                                    </div>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                )}
+                            </Draggable>
+                        ))}
+                        {provided.placeholder}
+                    </tbody>
+                </table>
+            )}
+        </Droppable>
+    </div>
+);
+
 const AdminPage = () => {
-    // Définir les états pour gérer la sélection et les données
+    // --- STATE MANAGEMENT ---
     const [schedule, setSchedule] = useState([]);
-    const [weeks, setWeeks] = useState([]);
-    const [sortedUniqueDates, setSortedUniqueDates] = useState([]);
+    const [weeks, setWeeks] = useState([]); // Now stores { number, date }
     const [selectedWeek, setSelectedWeek] = useState('');
     const [matchupsForWeek, setMatchupsForWeek] = useState([]);
     const [selectedMatchupId, setSelectedMatchupId] = useState('');
-    const [rosters, setRosters] = useState({ team1: [], team2: [] });
-    
-    // États pour l'alignement
-    const [lineup, setLineup] = useState({ team1: [], team2: [] });
-    const [lineupIsSet, setLineupIsSet] = useState(false);
-    
-   
-    const [gameData, setGameData] = useState({});
 
-    // Récupérer tout l'horaire de la saison
+    // Simplified state: only one lineup per team
+    const [team1, setTeam1] = useState({ id: null, name: 'Équipe 1', lineup: [] });
+    const [team2, setTeam2] = useState({ id: null, name: 'Équipe 2', lineup: [] });
+
+    const [gameData, setGameData] = useState({});
+    const [isLoading, setIsLoading] = useState(false);
+
+    // --- DATA FETCHING ---
     useEffect(() => {
         const fetchSchedule = async () => {
             try {
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
-                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                 const data = await response.json();
                 setSchedule(data);
+                const uniqueDates = [...new Set(data.map(item => item.weekdate))].sort((a, b) => new Date(a) - new Date(b));
+                
+                const weekData = uniqueDates.map((date, i) => ({
+                    number: i + 1,
+                    date: new Date(date).toLocaleDateString('fr-CA'),
+                }));
+                setWeeks(weekData);
 
-                // **RELIABLE WEEK CALCULATION**
-                const uniqueDates = [...new Set(data.map(item => item.weekdate))].sort();
-                setSortedUniqueDates(uniqueDates);
-                const seasonWeeks = Array.from({ length: uniqueDates.length }, (_, i) => i + 1);
-                setWeeks(seasonWeeks);
-
-            } catch (error) {
-                console.error("Erreur lors de la récupération de l'horaire:", error);
-            }
+            } catch (error) { console.error("Error fetching schedule:", error); }
         };
         fetchSchedule();
     }, []);
 
-    // Filtrer les matchs lorsque l'utilisateur sélectionne une semaine
     useEffect(() => {
-        if (selectedWeek && sortedUniqueDates.length > 0) {
-            const targetDate = sortedUniqueDates[parseInt(selectedWeek) - 1];
-            const matchups = schedule.filter(item => item.weekdate === targetDate);
-            setMatchupsForWeek(matchups);
-            setSelectedMatchupId(''); // Reset subsequent selections
+        if (selectedWeek) {
+            const selectedWeekInfo = weeks.find(w => w.number === parseInt(selectedWeek, 10));
+            if (selectedWeekInfo) {
+                const targetDate = new Date(selectedWeekInfo.date).toISOString().split('T')[0];
+                setMatchupsForWeek(schedule.filter(item => item.weekdate.startsWith(targetDate)));
+            }
+        } else {
+            setMatchupsForWeek([]);
         }
-    }, [selectedWeek, schedule, sortedUniqueDates]);
+        setSelectedMatchupId('');
+        setTeam1({ id: null, name: 'Équipe 1', lineup: [] });
+        setTeam2({ id: null, name: 'Équipe 2', lineup: [] });
+        setGameData({});
+    }, [selectedWeek, schedule, weeks]);
 
-    // Récupérer les détails du match et initialiser l'état des parties
     useEffect(() => {
         if (!selectedMatchupId) {
-            setRosters({ team1: [], team2: [] });
-            setLineup({ team1: [], team2: [] });
-            setLineupIsSet(false);
-            setGameData({});
+            setTeam1({ id: null, name: 'Équipe 1', lineup: [] });
+            setTeam2({ id: null, name: 'Équipe 2', lineup: [] });
             return;
         }
-        const fetchMatchupDetails = async () => {
+        const fetchDetails = async () => {
+            setIsLoading(true);
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/matchups/${selectedMatchupId}`);
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/matchup-details/${selectedMatchupId}`);
                 const data = await response.json();
-                
-                const currentMatchup = schedule.find(m => m.matchupid === parseInt(selectedMatchupId));
-                if (currentMatchup) {
-                    const team1Name = currentMatchup.team1_name;
-                    const team2Name = currentMatchup.team2_name;
-                    const uniquePlayers = [...new Map(data.map(p => [p.playerid, p])).values()];
+
+                const initialGameData = {};
+                let finalLineup1 = [...data.team1.roster];
+                let finalLineup2 = [...data.team2.roster];
+
+                if (data.existingGames.length > 0) {
+                    const lineup1Map = new Map(data.team1.roster.map(p => [p.playerId, p]));
+                    const lineup2Map = new Map(data.team2.roster.map(p => [p.playerId, p]));
                     
-                    setRosters({
-                        team1: uniquePlayers.filter(p => p.teamname === team1Name),
-                        team2: uniquePlayers.filter(p => p.teamname === team2Name),
+                    const sortedLineup1 = new Array(data.team1.roster.length);
+                    const sortedLineup2 = new Array(data.team2.roster.length);
+
+                    data.existingGames.forEach(game => {
+                        if (game.lineupposition) {
+                            if (lineup1Map.has(game.playerid)) {
+                                sortedLineup1[game.lineupposition - 1] = lineup1Map.get(game.playerid);
+                            }
+                            if (lineup2Map.has(game.playerid)) {
+                                sortedLineup2[game.lineupposition - 1] = lineup2Map.get(game.playerid);
+                            }
+                        }
+                        const key = `${game.playerid}-${game.gamenumber}`;
+                        initialGameData[key] = { score: game.gamescore !== null ? game.gamescore : '', isAbsent: game.isabsent };
                     });
+
+                    finalLineup1 = sortedLineup1.filter(p => p).concat(finalLineup1.filter(p => !sortedLineup1.includes(p)));
+                    finalLineup2 = sortedLineup2.filter(p => p).concat(finalLineup2.filter(p => !sortedLineup2.includes(p)));
                 }
-                setLineup({ team1: [], team2: [] }); 
-                setLineupIsSet(false);
-                setGameData({});
-            } catch (error) {
-                console.error("Erreur lors de la récupération des détails du match:", error);
+                
+                setGameData(initialGameData);
+                setTeam1({ ...data.team1, lineup: finalLineup1 });
+                setTeam2({ ...data.team2, lineup: finalLineup2 });
+
+            } catch (error) { 
+                console.error("Error fetching matchup details:", error); 
+            } finally {
+                setIsLoading(false);
             }
         };
-        fetchMatchupDetails();
-    }, [selectedMatchupId, schedule]);
-    
-    // **NEW ROBUST HANDLERS**
-    const handleScoreChange = (playerId, gameNumber, value) => {
-        const key = `${playerId}-${gameNumber}`;
-        setGameData(prev => ({
-            ...prev,
-            [key]: { ...prev[key], score: value, isAbsent: false }
-        }));
-    };
-    
-    const handleAbsenceChange = (playerId, gameNumber, isChecked) => {
-        const key = `${playerId}-${gameNumber}`;
-        setGameData(prev => ({
-            ...prev,
-            [key]: { ...prev[key], score: isChecked ? '' : (prev[key]?.score || ''), isAbsent: isChecked }
-        }));
-    };
+        fetchDetails();
+    }, [selectedMatchupId]);
 
-    const handleSaveLineup = () => {
-        if (lineup.team1.length !== 5 || lineup.team2.length !== 5) {
-            alert('Veuillez sélectionner 5 joueurs pour chaque équipe.');
+    // --- DRAG-AND-DROP HANDLER ---
+    const onDragEnd = (result) => {
+        const { source, destination } = result;
+        if (!destination) return;
+
+        if (source.droppableId !== destination.droppableId) {
             return;
         }
-        
-        const initialGameData = {};
-        const lineupPlayers = [...lineup.team1, ...lineup.team2];
-        lineupPlayers.forEach(playerId => {
-            [1, 2, 3].forEach(gameNumber => {
-                const key = `${playerId}-${gameNumber}`;
-                initialGameData[key] = { score: '', isAbsent: false };
-            });
-        });
-        setGameData(initialGameData);
-        setLineupIsSet(true);
+
+        const isTeam1 = source.droppableId === String(team1.id);
+        const team = isTeam1 ? team1 : team2;
+        const setTeam = isTeam1 ? setTeam1 : setTeam2;
+
+        const reorderedLineup = Array.from(team.lineup);
+        const [movedItem] = reorderedLineup.splice(source.index, 1);
+        reorderedLineup.splice(destination.index, 0, movedItem);
+
+        setTeam(t => ({ ...t, lineup: reorderedLineup }));
     };
 
-    const handleSubmitScores = async (e) => {
-        e.preventDefault();
-        const scoresToSubmit = Object.entries(gameData).map(([key, data]) => {
-            const [playerId, gameNumber] = key.split('-');
-            const player = [...rosters.team1, ...rosters.team2].find(p => p.playerid === parseInt(playerId));
-            if (!player) return null;
-            
-            const isTeam1 = rosters.team1.some(p => p.playerid === player.playerid);
-            const lineupPosition = isTeam1
-                ? lineup.team1.indexOf(player.playerid) + 1
-                : lineup.team2.indexOf(player.playerid) + 1;
+    // --- FORM HANDLERS ---
+    const handleScoreChange = (playerId, gameNumber, score) => {
+        const key = `${playerId}-${gameNumber}`;
+        const parsedScore = score.replace(/[^0-9]/g, '');
+        setGameData(prev => ({ ...prev, [key]: { ...prev[key], score: parsedScore, isAbsent: false } }));
+    };
 
-            return {
-                playerId: parseInt(playerId),
-                gameNumber: parseInt(gameNumber),
-                score: data.isAbsent ? 0 : (parseInt(data.score, 10) || 0),
-                isAbsent: data.isAbsent,
-                lineupPosition: lineupPosition,
-            };
-        }).filter(Boolean);
+    const handleAbsenceChange = (playerId, gameNumber, isChecked) => {
+        const key = `${playerId}-${gameNumber}`;
+        setGameData(prev => ({ ...prev, [key]: { score: '', isAbsent: isChecked } }));
+    };
+
+    const handleSubmitScores = async () => {
+        setIsLoading(true);
+        const scoresToSubmit = [];
+        let validationError = null;
+
+        const processLineup = (lineup, teamName) => {
+            if (validationError) return;
+            
+            if (lineup.length !== 5) {
+                validationError = `L'équipe ${teamName} doit avoir 5 joueurs dans l'alignement.`;
+                return;
+            }
+
+            lineup.forEach((player, index) => {
+                for (let gameNumber = 1; gameNumber <= 3; gameNumber++) {
+                    const key = `${player.playerId}-${gameNumber}`;
+                    const game = gameData[key] || { score: '', isAbsent: false };
+                    const scoreValue = game.score === '' ? null : parseInt(game.score, 10);
+
+                    if (game.score !== '' && !game.isAbsent && (isNaN(scoreValue) || scoreValue < 0 || scoreValue > 300)) {
+                        validationError = `Score invalide pour ${player.playerName}, partie ${gameNumber}. Veuillez entrer un nombre entre 0 et 300.`;
+                        return;
+                    }
+
+                    scoresToSubmit.push({
+                        matchupId: selectedMatchupId, 
+                        playerId: player.playerId, 
+                        gameNumber,
+                        score: game.isAbsent ? null : scoreValue, 
+                        isAbsent: game.isAbsent, 
+                        lineupPosition: index + 1 
+                    });
+                }
+            });
+        };
+
+        processLineup(team1.lineup, team1.name);
+        processLineup(team2.lineup, team2.name);
+
+        if (validationError) {
+            alert(validationError);
+            setIsLoading(false);
+            return;
+        }
 
         try {
             const response = await fetch(`${process.env.REACT_APP_API_URL}/api/scores/batch`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ matchupId: selectedMatchupId, scores: scoresToSubmit }),
+                body: JSON.stringify(scoresToSubmit)
             });
-            if (response.ok) alert('Pointages enregistrés avec succès!');
-            else alert('Erreur lors de la sauvegarde des pointages.');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Erreur lors de la soumission des scores.');
+            }
+            alert('Scores soumis avec succès!');
         } catch (error) {
-            console.error("Erreur:", error);
-            alert("Une erreur de communication est survenue.");
+            console.error("Error submitting scores:", error);
+            alert(`Erreur: ${error.message}`);
+        } finally {
+            setIsLoading(false);
         }
-    };
-    
-    const handleLineupChange = (team, playerId) => {
-        const currentLineup = lineup[team];
-        const playerIsSelected = currentLineup.includes(playerId);
-        let newLineup = [...currentLineup];
-
-        if (playerIsSelected) {
-            newLineup = newLineup.filter(id => id !== playerId);
-        } else if (currentLineup.length < 5) {
-            newLineup.push(playerId);
-        }
-        setLineup(prev => ({ ...prev, [team]: newLineup }));
     };
 
     return (
         <div className={styles.adminContainer}>
             <h1>Gestion de Match</h1>
             <div className={styles.selectionBar}>
-                <select onChange={(e) => setSelectedWeek(e.target.value)} value={selectedWeek}>
-                    <option value="">-- Choisir une semaine --</option>
-                    {weeks.map(week => <option key={week} value={week}>Semaine {week}</option>)}
-                </select>
-                <select onChange={(e) => setSelectedMatchupId(e.target.value)} value={selectedMatchupId} disabled={!selectedWeek}>
-                    <option value="">-- Choisir un match --</option>
-                    {matchupsForWeek.map(match => (
-                        <option key={match.matchupid} value={match.matchupid}>{match.team1_name} vs {match.team2_name}</option>
+                <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
+                    <option value="">Sélectionner une semaine</option>
+                    {weeks.map(weekInfo => (
+                        <option key={weekInfo.number} value={weekInfo.number}>
+                            Semaine {weekInfo.number} ({weekInfo.date})
+                        </option>
                     ))}
                 </select>
+                {selectedWeek && (
+                    <select value={selectedMatchupId} onChange={e => setSelectedMatchupId(e.target.value)} disabled={!selectedWeek}>
+                        <option value="">Sélectionner un match</option>
+                        {matchupsForWeek.map(m => <option key={m.matchupid} value={m.matchupid}>{m.team1_name} vs {m.team2_name}</option>)}
+                    </select>
+                )}
             </div>
 
-            {selectedMatchupId && !lineupIsSet && (
-                <div className={styles.lineupContainer}>
-                    <h2>Définir l'alignement</h2>
-                    <div className={styles.rosterColumns}>
-                        <div className={styles.roster}>
-                            <h3>{rosters.team1[0]?.teamname || 'Équipe 1'} ({lineup.team1.length}/5)</h3>
-                            {rosters.team1.map(p => (
-                                <div key={p.playerid}>
-                                    <input type="checkbox" id={`p-${p.playerid}`} checked={lineup.team1.includes(p.playerid)} onChange={() => handleLineupChange('team1', p.playerid)} />
-                                    <label htmlFor={`p-${p.playerid}`}>{p.playername}</label>
-                                </div>
-                            ))}
+            {isLoading && <div className={styles.loader}>Chargement...</div>}
+
+            {selectedMatchupId && !isLoading && (
+                <div className={styles.scoreForm}>
+                    <h2>Alignements et Pointages</h2>
+                     <p className={styles.instructionText}>Faites glisser les joueurs pour changer leur position dans l'alignement.</p>  
+                    <DragDropContext onDragEnd={onDragEnd}>
+                        <div className={styles.rosterColumns}>
+                           <DraggableScoreTable 
+                                team={team1} 
+                                setTeam={setTeam1} 
+                                gameData={gameData} 
+                                handleScoreChange={handleScoreChange} 
+                                handleAbsenceChange={handleAbsenceChange} 
+                                isLoading={isLoading} 
+                           />
+                           <DraggableScoreTable 
+                                team={team2} 
+                                setTeam={setTeam2} 
+                                gameData={gameData} 
+                                handleScoreChange={handleScoreChange} 
+                                handleAbsenceChange={handleAbsenceChange} 
+                                isLoading={isLoading} 
+                           />
                         </div>
-                        <div className={styles.roster}>
-                            <h3>{rosters.team2[0]?.teamname || 'Équipe 2'} ({lineup.team2.length}/5)</h3>
-                            {rosters.team2.map(p => (
-                                <div key={p.playerid}>
-                                    <input type="checkbox" id={`p-${p.playerid}`} checked={lineup.team2.includes(p.playerid)} onChange={() => handleLineupChange('team2', p.playerid)} />
-                                    <label htmlFor={`p-${p.playerid}`}>{p.playername}</label>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <button onClick={handleSaveLineup} className={styles.submitButton}>Saisir les scores</button>
+                    </DragDropContext>
+                    <button onClick={handleSubmitScores} className={styles.submitButton} disabled={isLoading || team1.lineup.length !== 5 || team2.lineup.length !== 5}>
+                        {isLoading ? 'Soumission...' : 'Soumettre les Alignements et Pointages'}
+                    </button>
                 </div>
-            )}
-            
-            {lineupIsSet && (
-                 <form onSubmit={handleSubmitScores} className={styles.scoreForm}>
-                    <h2>Saisie des Pointages</h2>
-                     <table className={styles.scoreTable}>
-                         <thead>
-                             <tr>
-                                 <th>Joueur</th>
-                                 <th>Équipe</th>
-                                 <th>Partie 1</th>
-                                 <th>Partie 2</th>
-                                 <th>Partie 3</th>
-                             </tr>
-                         </thead>
-                         <tbody>
-                            {[...rosters.team1, ...rosters.team2]
-                                .filter(p => lineup.team1.includes(p.playerid) || lineup.team2.includes(p.playerid))
-                                .map(player => (
-                                 <tr key={player.playerid}>
-                                     <td>{player.playername}</td>
-                                     <td>{player.teamname}</td>
-                                     {[1, 2, 3].map(gameNumber => {
-                                        const key = `${player.playerid}-${gameNumber}`;
-                                        const currentGame = gameData[key] || { score: '', isAbsent: false };
-                                        return (
-                                            <td key={key} className={styles.scoreCell}>
-                                                <input
-                                                    type="number"
-                                                    min="0" max="300"
-                                                    className={styles.scoreInput}
-                                                    value={currentGame.score ?? ''} 
-                                                    onChange={(e) => handleScoreChange(player.playerid, gameNumber, e.target.value)}
-                                                    disabled={currentGame.isAbsent}
-                                                />
-                                                <label className={styles.absentLabel}>
-                                                    <input
-                                                        type="checkbox"
-                                                        className={styles.absentCheckbox}
-                                                        checked={currentGame.isAbsent}
-                                                        onChange={(e) => handleAbsenceChange(player.playerid, gameNumber, e.target.checked)}
-                                                    />
-                                                    Abs
-                                                </label>
-                                            </td>
-                                        );
-                                     })}
-                                 </tr>
-                             ))}
-                         </tbody>
-                     </table>
-                     <button type="submit" className={styles.submitButton}>Enregistrer les pointages</button>
-                 </form>
             )}
         </div>
     );

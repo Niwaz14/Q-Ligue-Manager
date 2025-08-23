@@ -7,6 +7,10 @@ app.use(cors());
 app.use(express.json());
 const port = 3000;
 
+app.use(cors({
+  origin: process.env.CORS_ORIGIN
+}));
+
 // --- GET API Endpoints ---
 
 app.get('/', (req, res) => {

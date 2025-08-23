@@ -5,7 +5,13 @@ const app = express();
 const cors = require('cors');
 app.use(cors());
 app.use(express.json());
-const port = 3000;
+const PORT = process.env.PORT || 3000; 
+
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || "http://localhost:3000" 
+};
+
+app.use(cors(corsOptions));
 
 app.use(cors({
   origin: process.env.CORS_ORIGIN
@@ -626,5 +632,5 @@ app.post('/api/verify', (req, res) => { // Solution temporaire pour vérifier le
 // |------------------------------------------------------------------------ POST ENDPOINTS API FIN ------------------------------------------------------------------------|
 
 app.listen(port, function() {
-  console.log(`Le serveur écoute ici : http://localhost:${port}`); // Démarrer le serveur et afficher un message dans la console
+  console.log(`Le serveur écoute ici : http://localhost:${PORT}`); // Démarrer le serveur et afficher un message dans la console
 });

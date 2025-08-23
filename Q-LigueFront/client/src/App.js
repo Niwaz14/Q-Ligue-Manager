@@ -19,7 +19,7 @@ const AppLayout = () => {
         <Routes>
           <Route path="/" element={<Accueil />} />
           <Route path="/classement-joueurs" element={<ClassementJoueurs />} />
-          <Route path="/classement-equipes" element={<ClassementEquipe />} />
+          <Route path="/classement-equipe" element={<ClassementEquipe />} />
           <Route path="/horaire" element={<Horaire />} />
           <Route path="/bourses" element={<Bourses />} />
           <Route path="/admin" element={<AdminLoginPage />} />

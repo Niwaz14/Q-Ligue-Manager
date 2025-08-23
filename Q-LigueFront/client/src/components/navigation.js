@@ -1,50 +1,85 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import styles from './navigation.module.css';
-import logo from '../logo.svg';
+import { useAuth } from '../context/AuthContext';
 
 const Navigation = () => {
-    const [menuOpen, setMenuOpen] = useState(false);
-    const location = useLocation();
+    const [isOpen, setIsOpen] = useState(false);
+    const [openSubMenu, setOpenSubMenu] = useState(null);
+    const { isAuthenticated, logout } = useAuth();
+    const navigate = useNavigate();
 
-    const handleLinkClick = () => {
-        setMenuOpen(false);
+    const toggleMenu = () => {
+        setIsOpen(!isOpen);
+        // If the main menu is being closed, also close any open submenus
+        if (isOpen) {
+            setOpenSubMenu(null);
+        }
+    };
+
+    const handleLogout = () => {
+        logout();
+        closeAllMenus();
+        navigate('/');
+    };
+    
+    const toggleSubMenu = (menuName) => {
+        // If the clicked submenu is already open, close it. Otherwise, open it.
+        setOpenSubMenu(openSubMenu === menuName ? null : menuName);
+    };
+
+    const closeAllMenus = () => {
+        setIsOpen(false);
+        setOpenSubMenu(null);
     };
 
     return (
-        <header className={styles.header}>
-            <NavLink to="/" className={styles.logoContainer} onClick={handleLinkClick}>
-                <img src={logo} alt="Q-Ligue Manager Logo" className={styles.logo} />
-                <span className={styles.appName}>Q-Ligue Manager</span>
-            </NavLink>
+        <nav className={styles.navbar}>
+            <div className={styles.navContainer}>
+                <NavLink to="/" className={styles.navLogo}>Q-Ligue Manager</NavLink>
+                
+                <div className={styles.menuIcon} onClick={toggleMenu}>
+                    &#9776; {/* Hamburger Icon */}
+                </div>
 
-            <div className={styles.hamburger} onClick={() => setMenuOpen(!menuOpen)}>
-                <span className={styles.bar}></span>
-                <span className={styles.bar}></span>
-                <span className={styles.bar}></span>
-            </div>
-
-            <nav className={`${styles.navMenu} ${menuOpen ? styles.open : ''}`}>
-                <ul className={styles.navList}>
-                    <li>
-                        <NavLink to="/" className={({ isActive }) => isActive ? styles.active : ''} onClick={handleLinkClick} end>
-                            Accueil
-                        </NavLink>
+                {/* This single UL is used for both desktop and mobile */}
+                <ul className={isOpen ? `${styles.navMenu} ${styles.active}` : styles.navMenu}>
+                    <li className={styles.navItem}>
+                        <NavLink to="/" className={styles.navLink} onClick={closeAllMenus}>Accueil</NavLink>
                     </li>
-                    <li className={styles.dropdown}>
-                        <a className={location.pathname.startsWith('/saison') ? styles.active : ''}>
-                            Saison
-                        </a>
-                        <ul className={styles.dropdownContent}>
-                            <li><NavLink to="/classement-joueurs" onClick={handleLinkClick}>Classement Joueurs</NavLink></li>
-                            <li><NavLink to="/classement-equipes" onClick={handleLinkClick}>Classement Équipes</NavLink></li>
-                            <li><NavLink to="/horaire" onClick={handleLinkClick}>Horaire</NavLink></li>
-                            <li><NavLink to="/bourses" onClick={handleLinkClick}>Bourses</NavLink></li>
+
+                    <li className={styles.navItem}>
+                        <div className={styles.navLink} onClick={() => toggleSubMenu('classement')}>
+                            Classement
+                            <span className={`${styles.arrow} ${openSubMenu === 'classement' ? styles.arrowUp : ''}`}>▼</span>
+                        </div>
+                        <ul className={`${styles.subMenu} ${openSubMenu === 'classement' ? styles.subMenuOpen : ''}`}>
+                            <li><NavLink to="/classement-equipe" className={styles.subNavLink} onClick={closeAllMenus}>Équipe</NavLink></li>
+                            <li><NavLink to="/classement-joueurs" className={styles.subNavLink} onClick={closeAllMenus}>Joueurs</NavLink></li>
                         </ul>
                     </li>
+
+                    <li className={styles.navItem}>
+                        <NavLink to="/horaire" className={styles.navLink} onClick={closeAllMenus}>Horaire</NavLink>
+                    </li>
+                    
+                    {isAuthenticated ? (
+                        <>
+                            <li className={styles.navItem}>
+                                <NavLink to="/admin/dashboard" className={styles.navLink} onClick={closeAllMenus}>Admin</NavLink>
+                            </li>
+                            <li className={styles.navItem}>
+                                <div className={styles.navLink} onClick={handleLogout}>Déconnexion</div>
+                            </li>
+                        </>
+                    ) : (
+                        <li className={styles.navItem}>
+                            <NavLink to="/admin" className={styles.navLink} onClick={closeAllMenus}>Admin</NavLink>
+                        </li>
+                    )}
                 </ul>
-            </nav>
-        </header>
+            </div>
+        </nav>
     );
 };
 

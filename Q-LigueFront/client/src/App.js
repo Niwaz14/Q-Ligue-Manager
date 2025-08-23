@@ -1,6 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navigation from './components/navigation';
 import Accueil from './pages/Accueil';
 import ClassementJoueurs from './pages/ClassementJoueurs';
@@ -13,14 +12,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
 const AppLayout = () => {
-  const { isAuthenticated, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
   return (
     <div className="App">
       <Navigation />
@@ -45,17 +36,6 @@ const AppLayout = () => {
 
       <footer className="app-footer">
         <div className="footer-content">
-          <div className="footer-actions">
-            {/* --- UPDATED BUTTON LOGIC --- */}
-            {isAuthenticated ? (
-              <>
-                <Link to="/admin/dashboard" className="footer-button">Admin</Link>
-                <button onClick={handleLogout} className="footer-button">Déconnexion</button>
-              </>
-            ) : (
-              <Link to="/admin" className="footer-button">Admin</Link>
-            )}
-          </div>
           <p className="copyright-text">
             &copy; {new Date().getFullYear()} Q-Ligue Manager. Tous droits réservés.
           </p>

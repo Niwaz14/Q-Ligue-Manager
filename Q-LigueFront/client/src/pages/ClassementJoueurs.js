@@ -162,6 +162,8 @@ const ClassementJoueurs = () => {
                     density: 'compact',
                     pagination: { pageSize: 120, pageIndex: 0 },
                 }}
+                enableStickyHeader
+                muiTableContainerProps={{ sx: { overflowX: 'auto' } }}
                 muiTableHeadCellProps={{
                     sx: {
                         backgroundColor: '#3b658f',

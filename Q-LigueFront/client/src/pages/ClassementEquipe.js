@@ -26,8 +26,8 @@ const ClassementEquipe = () => {
                     setSelectedWeek(String(weekData.length));
                 }
             } catch (error) {
-                console.error("Error fetching schedule:", error);
-                setError("Could not load schedule data.");
+                console.error("Error à la récupération de l'horaire:", error);
+                setError("Impossible de charger l'horaire.");
             }
         };
         fetchSchedule();
@@ -109,6 +109,8 @@ const ClassementEquipe = () => {
                     density: 'compact',
                     pagination: { pageSize: 120, pageIndex: 0 },
                 }}
+                enableStickyHeader
+                muiTableContainerProps={{ sx: { overflowX: 'auto' } }}
                 muiTableHeadCellProps={{
                     sx: {
                         backgroundColor: '#3b658f',

@@ -8,6 +8,7 @@ const Horaire = () => {
     const [selectedWeek, setSelectedWeek] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
+
     useEffect(() => {
         const fetchSchedule = async () => {
             try {
@@ -18,7 +19,7 @@ const Horaire = () => {
                 const uniqueWeeks = [...new Map(data.map(item => [item.weekid, { weekid: item.weekid, weekdate: item.weekdate }])).values()]
                     .sort((a, b) => a.weekid - b.weekid);
                 setWeeks(uniqueWeeks);
-
+                
                 const allTeams = data.reduce((acc, { team1_id, team1_name, team2_id, team2_name }) => {
                     if (!acc.has(team1_id)) acc.set(team1_id, team1_name);
                     if (!acc.has(team2_id)) acc.set(team2_id, team2_name);
@@ -26,7 +27,6 @@ const Horaire = () => {
                 }, new Map());
                 
                 const sortedTeams = Array.from(allTeams.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.id - b.id);
-
                 setTeams(sortedTeams);
 
                 if (uniqueWeeks.length > 0) {
@@ -43,11 +43,12 @@ const Horaire = () => {
     }, []);
 
     const filteredMatchups = useMemo(() => {
+        if (!selectedWeek) return [];
         return schedule.filter(match => match.weekid === parseInt(selectedWeek));
     }, [schedule, selectedWeek]);
 
     const upcomingMatchups = useMemo(() => {
-        if (!selectedWeek) return [];
+        if (!selectedWeek || teams.length === 0) return [];
         const currentWeekNumber = parseInt(selectedWeek);
         const nextWeek1 = currentWeekNumber + 1;
         const nextWeek2 = currentWeekNumber + 2;
@@ -55,12 +56,17 @@ const Horaire = () => {
         return teams.map(team => {
             const findMatchup = (weekNum) => {
                 const match = schedule.find(m => m.weekid === weekNum && (m.team1_id === team.id || m.team2_id === team.id));
-                if (!match) return { opponent: 'N/A', lane: 'N/A' };
-                const opponent = match.team1_id === team.id ? match.team2_name : match.team1_name;
-                return { opponent, lane: match.lanenumber };
+                if (!match) return { opponentName: 'N/A', opponentId: null, lane: 'N/A' };
+                
+                const isTeam1 = match.team1_id === team.id;
+                const opponentName = isTeam1 ? match.team2_name : match.team1_name;
+                const opponentId = isTeam1 ? match.team2_id : match.team1_id;
+
+                return { opponentName, opponentId, lane: match.lanenumber };
             };
 
             return {
+                teamId: team.id,
                 teamName: team.name,
                 next1: findMatchup(nextWeek1),
                 next2: findMatchup(nextWeek2),
@@ -73,7 +79,7 @@ const Horaire = () => {
     }
 
     return (
-                <div className={styles.container}>
+        <div className={styles.container}>
             <div className={styles.header}>
                 <h1>Horaire de la saison</h1>
                 <div className={styles.weekSelectorContainer}>
@@ -95,7 +101,7 @@ const Horaire = () => {
                         <thead>
                             <tr>
                                 <th>Équipe #1</th>
-                                <th>Contre</th>
+                                <th></th>
                                 <th>Équipe #2</th>
                                 <th>Allée</th>
                             </tr>
@@ -103,9 +109,13 @@ const Horaire = () => {
                         <tbody>
                             {filteredMatchups.map((match) => (
                                 <tr key={match.matchupid}>
-                                    <td className={styles.teamName}>{match.team1_name}</td>
+                                    <td className={styles.teamName}>
+                                        #{match.team1_id}<span className={styles.desktopOnly}> - {match.team1_name}</span>
+                                    </td>
                                     <td className={styles.vs}>vs</td>
-                                    <td className={styles.teamName}>{match.team2_name}</td>
+                                    <td className={styles.teamName}>
+                                        #{match.team2_id}<span className={styles.desktopOnly}> - {match.team2_name}</span>
+                                    </td>
                                     <td>{match.lanenumber}</td>
                                 </tr>
                             ))}
@@ -116,29 +126,97 @@ const Horaire = () => {
 
             {upcomingMatchups.length > 0 && (
                 <div className={styles.upcomingBlock}>
-                    <h2>Prochains Matchs</h2>
-                    <table className={styles.upcomingTable}>
+                    <h2>Prochaines Semaines</h2>
+                    
+                    {/* Desktop Table */}
+                    <table className={`${styles.upcomingTable} ${styles.desktopOnlyTable}`}>
                         <thead>
                             <tr>
                                 <th>Équipe</th>
-                                <th>Prochain adversaire (Semaine {parseInt(selectedWeek) + 1})</th>
+                                <th className={styles.separatorLeft}>
+                                    Prochain adversaire<span className={styles.desktopOnly}> (Semaine {parseInt(selectedWeek) + 1})</span>
+                                </th>
                                 <th>Allée</th>
-                                <th>Adversaire suivant (Semaine {parseInt(selectedWeek) + 2})</th>
+                                <th className={styles.separatorLeft}>
+                                    Adversaire suivant<span className={styles.desktopOnly}> (Semaine {parseInt(selectedWeek) + 2})</span>
+                                </th>
                                 <th>Allée</th>
                             </tr>
                         </thead>
                         <tbody>
                             {upcomingMatchups.map((team) => (
-                                <tr key={team.teamName}>
-                                    <td>{team.teamName}</td>
-                                    <td>{team.next1.opponent}</td>
+                                <tr key={team.teamId}>
+                                    <td className={styles.teamName}>
+                                        #{team.teamId}<span className={styles.desktopOnly}> - {team.teamName}</span>
+                                    </td>
+                                    <td className={styles.separatorLeft}>
+                                        {team.next1.opponentId ? `#${team.next1.opponentId}` : ''}
+                                        <span className={styles.desktopOnly}>{team.next1.opponentId ? ` - ${team.next1.opponentName}` : 'N/A'}</span>
+                                    </td>
                                     <td>{team.next1.lane}</td>
-                                    <td>{team.next2.opponent}</td>
+                                    <td className={styles.separatorLeft}>
+                                        {team.next2.opponentId ? `#${team.next2.opponentId}` : ''}
+                                        <span className={styles.desktopOnly}>{team.next2.opponentId ? ` - ${team.next2.opponentName}` : 'N/A'}</span>
+                                    </td>
                                     <td>{team.next2.lane}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
+
+                    {/* Mobile Tables */}
+                    <div className={styles.mobileOnlyTables}>
+                        <h3 className={styles.mobileTableHeader}>Prochain adversaire (Semaine {parseInt(selectedWeek) + 1})</h3>
+                        <table className={styles.upcomingTable}>
+                            <thead>
+                                <tr>
+                                    <th>Équipe</th>
+                                    <th>Adversaire</th>
+                                    <th>Allée</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {upcomingMatchups.map((team) => (
+                                    <tr key={`${team.teamId}-next1`}>
+                                        <td className={styles.teamName}>#{team.teamId}</td>
+                                        <td>{team.next1.opponentId ? `#${team.next1.opponentId}` : 'N/A'}</td>
+                                        <td>{team.next1.lane}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <h3 className={styles.mobileTableHeader}>Adversaire suivant (Semaine {parseInt(selectedWeek) + 2})</h3>
+                        <table className={styles.upcomingTable}>
+                            <thead>
+                                <tr>
+                                    <th>Équipe</th>
+                                    <th>Adversaire</th>
+                                    <th>Allée</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {upcomingMatchups.map((team) => (
+                                    <tr key={`${team.teamId}-next2`}>
+                                        <td className={styles.teamName}>#{team.teamId}</td>
+                                        <td>{team.next2.opponentId ? `#${team.next2.opponentId}` : 'N/A'}</td>
+                                        <td>{team.next2.lane}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+            
+            {teams.length > 0 && (
+                <div className={styles.legendContainer}>
+                    <h3>Légende des équipes</h3>
+                    <ul className={styles.legendList}>
+                        {teams.map(team => (
+                            <li key={team.id}><b>#{team.id}:</b> {team.name}</li>
+                        ))}
+                    </ul>
                 </div>
             )}
         </div>

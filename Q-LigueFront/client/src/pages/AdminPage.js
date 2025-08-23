@@ -6,12 +6,13 @@ import styles from './AdminPage.module.css';
 const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handleAbsenceChange, isLoading }) => (
     <div className={styles.roster}>
         <h3>{team.name}</h3>
+        <div className={styles.tableContainer}> 
         <Droppable droppableId={String(team.id)}>
             {(provided) => (
                 <table className={styles.scoreTable} {...provided.droppableProps} ref={provided.innerRef}>
                     <thead>
                         <tr>
-                            <th style={{ width: '40px' }}>#</th>
+                            <th>#</th>
                             <th>Joueur</th>
                             <th>Partie 1</th>
                             <th>Partie 2</th>
@@ -32,7 +33,7 @@ const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handl
                                         <td>
                                             <span className={styles.playerName}>{player.playerName} <br/> </span>
                                             <span className={styles.playerStats}>
-                                                Moy: {player.previousWeekAvg ? player.previousWeekAvg.toFixed(2) : 'N/A'}, 
+                                                Moy: {player.previousWeekAvg ? player.previousWeekAvg.toFixed(2) : 'N/A'}, <br></br> 
                                                 Hcp: {player.previousWeekHcp ? player.previousWeekHcp : 'N/A'}
                                             </span>
                                         </td>
@@ -74,6 +75,7 @@ const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handl
                 </table>
             )}
         </Droppable>
+        </div>
     </div>
 );
 

@@ -1,215 +1,180 @@
-/* --- Default Desktop Styles --- */
-.header {
-    display: grid; 
-    grid-template-columns: 1fr auto 1fr; 
-    align-items: center;
-    padding: 0 2rem;
+/* --- Base Navbar Styles --- */
+.navbar {
     background-color: var(--primary-dark);
-    color: var(--text-light);
-    height: 60px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    position: relative;
-    z-index: 100;
-}
-
-.logoContainer {
-    grid-column: 1 / 2; 
-    justify-self: start; 
+    height: 80px;
     display: flex;
+    justify-content: center;
     align-items: center;
-    color: var(--text-light);
-    text-decoration: none;
-    height: 100%;
-}
-
-.logo {
-    height: 40px;
-    width: auto;
-    margin-right: 10px;
-}
-
-.appName {
     font-size: 1.2rem;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
+
+.navContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 80px;
+    width: 100%;
+    max-width: 1400px;
+    padding: 0 2rem;
+    position: relative; /* Acts as an anchor for the mobile dropdown */
+}
+
+.navLogo {
+    color: var(--surface-white);
+    text-decoration: none;
+    font-size: 2rem;
     font-weight: bold;
 }
 
+
 .navMenu {
-    grid-column: 2 / 3; 
     display: flex;
-    height: 100%;
-}
-
-.navList {
     list-style: none;
-    display: flex;
-    align-items: center;
-    margin: 0;
+    text-align: center;
+    
+    /* FIX: Add these two lines to remove default browser spacing */
     padding: 0;
+    margin: 0;
 }
 
-.navList > li {
-    margin: 0 10px; 
-    height: 100%;
-    display: flex;
-    align-items: center;
-}
 
-.navList a {
-    color: var(--text-light);
-    text-decoration: none;
-    font-weight: 600;
-    padding: 10px;
-    border-radius: 4px;
-    transition: background-color 0.3s ease;
-}
-
-.navList > li > a:hover, 
-.navList > li > a.active {
-    background-color: var(--accent-blue);
-}
-
-.hamburger {
-    display: none; 
-    cursor: pointer;
-}
-
-/* --- Dropdown Specific Styles (Desktop) --- */
-.dropdown {
+.navItem {
+    height: 80px;
     position: relative;
 }
 
-.dropdown > a {
-    cursor: default;
+.navLink {
+    color: var(--surface-white);
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    padding: 0 1rem;
+    height: 100%;
+    cursor: pointer;
+    white-space: nowrap;
 }
 
-.dropdownContent {
+.navLink:hover {
+    color: #ddd;
+}
+
+.arrow {
+    margin-left: 8px;
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+/* --- Desktop Submenu --- */
+.subMenu {
     display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background-color: var(--surface-white);
-    min-width: 220px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
     list-style: none;
-    padding: 0.5rem 0;
-    margin: 0;
-    border-radius: 0 0 4px 4px;
+    padding: 0;
+    position: absolute;
+    top: 80px;
+    left: 0;
+    background-color: var(--primary-dark);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    border-radius: 0 0 8px 8px;
+    min-width: 160px;
 }
 
-.dropdown:hover .dropdownContent {
+.navItem:hover .subMenu {
     display: block;
 }
 
-.dropdownContent li {
-    margin: 0;
-}
-
-.dropdownContent a {
-    color: var(--text-dark);
+.subNavLink {
+    color: var(--surface-white);
     padding: 12px 16px;
     text-decoration: none;
     display: block;
-    font-weight: 500;
-    border-radius: 0;
+    text-align: left;
 }
 
-.dropdownContent a:hover {
-    background-color: var(--background-light);
+.subNavLink:hover {
+    background-color: var(--accent-red);
 }
 
-/* --- Mobile Styles --- */
-@media (max-width: 768px) {
-    .header {
-        display: flex; 
-        justify-content: space-between;
+.menuIcon {
+    display: none;
+}
+
+/* --- MOBILE STYLES (New Dropdown Approach) --- */
+@media screen and (max-width: 960px) {
+    .navMenu {
+        display: none; /* Hide menu by default on mobile */
+        flex-direction: column;
+        width: 100%;
+        position: absolute;
+        top: 80px; /* Position directly below the navbar */
+        left: 0;
+        background-color: #242222;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
 
-    .navMenu {
-        display: none;
-        position: absolute;
-        top: 60px;
-        left: 0;
+    .navMenu.active {
+        display: flex; /* Show the menu when active */
+    }
+
+    .menuIcon {
+        display: block;
+        font-size: 1.8rem;
+        cursor: pointer;
+        color: var(--surface-white);
+    }
+
+    .navItem {
         width: 100%;
-        background-color: var(--primary-medium);
         height: auto;
     }
-
-    .navMenu.open {
-        display: block;
+    
+    .navLink {
+        width: 100%;
+        padding: 1rem 1.5rem;
+        justify-content: flex-start; /* Align link text to the left */
+        text-align: left;
+        border-bottom: 1px solid #444;
     }
 
-    .navList {
-        flex-direction: column;
-        width: 100%;
-        align-items: flex-start;
+    .navLink:hover {
+        background-color: var(--accent-red);
     }
     
-    .navList > li {
-        margin: 0;
-        width: 100%;
-        border-bottom: 1px solid var(--primary-dark);
-    }
-
-    .navList > li:last-child {
-        border-bottom: none;
-    }
-
-    .navList a {
-        display: block;
-        padding: 1rem;
-        border-radius: 0;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .hamburger {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-around;
-        width: 2rem;
-        height: 2rem;
-    }
-    
-    .hamburger .bar {
-        width: 2rem;
-        height: 0.25rem;
-        background: var(--text-light);
-        border-radius: 10px;
-    }
-
-    /* --- Mobile Dropdown Styles --- */
-    .dropdown {
-        position: static;
-    }
-
-    .dropdown:hover .dropdownContent {
+    .navItem:hover .subMenu {
         display: none;
     }
-
-    .dropdown > a {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
+    
+    .arrow {
+        margin-left: auto; /* Push arrow to the far right */
     }
-    .dropdown > a:after {
-        content: '▼';
-        font-size: 0.8rem;
+
+    .arrowUp {
+        transform: rotate(180deg);
     }
     
-    .dropdownContent {
+    .subMenu {
+        position: relative;
         display: block;
-        position: static;
-        background-color: transparent;
+        top: auto;
+        left: auto;
         box-shadow: none;
-        min-width: auto;
-        padding: 0;
+        background-color: #333;
+        width: 100%;
         border-radius: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-in-out;
     }
 
-    .dropdownContent li {
-        padding-left: 20px;
-        background-color: rgba(0,0,0,0.15);
-        border-bottom: 1px solid var(--accent-blue);
+    .subMenuOpen {
+        max-height: 200px;
+    }
+    
+    .subNavLink {
+        padding: 1rem 2.5rem; /* Indent submenu links */
+        border-bottom: 1px solid #444;
+        text-align: left;
     }
 }

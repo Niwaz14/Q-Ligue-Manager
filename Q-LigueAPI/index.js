@@ -3,19 +3,11 @@ const express = require('express');
 const pool = require('./db.js');
 const app = express();
 const cors = require('cors');
+
 app.use(cors());
 app.use(express.json());
+
 const PORT = process.env.PORT || 3000; 
-
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "http://localhost:3000" 
-};
-
-app.use(cors(corsOptions));
-
-app.use(cors({
-  origin: process.env.CORS_ORIGIN
-}));
 
 // --- GET API Endpoints ---
 

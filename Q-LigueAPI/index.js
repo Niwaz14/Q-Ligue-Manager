@@ -625,6 +625,220 @@ app.post('/api/verify', (req, res) => { // Solution temporaire pour vérifier le
 
 // |------------------------------------------------------------------------ POST ENDPOINTS API FIN ------------------------------------------------------------------------|
 
+// Matchplay Qualification Endpoint
+app.get('/api/matchplay/qualification/:weekId', async (req, res) => {
+    const { weekId } = req.params;
+    const numericWeekId = parseInt(weekId, 10);
+    const client = await pool.connect();
+
+    try {
+        const handicapBase = 240;
+        const handicapFactor = 0.40;
+
+        // Fetch all players
+        const allPlayers = (await client.query('SELECT "PlayerID", "PlayerName" FROM "Player";')).rows;
+
+        // Fetch all games up to the current week (inclusive) for calculating current week's triples and historical averages
+        const allGamesUpToCurrentWeek = (await client.query(`
+            SELECT
+                g."PlayerID",
+                g."GameScore",
+                g."GameNumber",
+                g."IsAbsent",
+                m."WeekID"
+            FROM "Game" g
+            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+            WHERE m."WeekID" <= $1 AND g."IsAbsent" = FALSE;
+        `, [numericWeekId])).rows;
+
+        // Calculate player averages and handicaps up to the *previous* week
+        const playerStatsHistory = new Map(); // Stores average and handicap up to previous week
+        allPlayers.forEach(player => {
+            const gamesForStats = allGamesUpToCurrentWeek.filter(g => g.PlayerID === player.PlayerID && g.WeekID < numericWeekId);
+            const totalScore = gamesForStats.reduce((sum, game) => sum + game.GameScore, 0);
+            const average = gamesForStats.length > 0 ? totalScore / gamesForStats.length : 150;
+            const handicap = Math.max(0, Math.floor((handicapBase - average) * handicapFactor));
+            playerStatsHistory.set(player.PlayerID, { average, handicap });
+        });
+
+        // Process current week's games for triples and highest single game
+        const playersThisWeek = new Map(); // Stores processed data for players who played this week
+        const gamesThisWeek = allGamesUpToCurrentWeek.filter(g => g.WeekID === numericWeekId);
+
+        gamesThisWeek.forEach(game => {
+            if (!playersThisWeek.has(game.PlayerID)) {
+                const playerInfo = allPlayers.find(p => p.PlayerID === game.PlayerID);
+                playersThisWeek.set(game.PlayerID, {
+                    playerId: game.PlayerID,
+                    playerName: playerInfo.PlayerName,
+                    handicap: playerStatsHistory.get(game.PlayerID)?.handicap || 0,
+                    gameScores: [],
+                    totalTriple: 0,
+                    totalTripleHandicap: 0,
+                    highestSingle: 0,
+                });
+            }
+            const player = playersThisWeek.get(game.PlayerID);
+            player.gameScores[game.GameNumber - 1] = game.GameScore; // Store game scores
+            player.highestSingle = Math.max(player.highestSingle, game.GameScore);
+        });
+
+        // Calculate triples (with and without handicap) for players who played this week
+        playersThisWeek.forEach(player => {
+            const sumOfGames = player.gameScores.reduce((sum, score) => sum + score, 0);
+            player.totalTriple = sumOfGames;
+            player.totalTripleHandicap = sumOfGames + (player.handicap * 3);
+        });
+
+        // Convert map to array for sorting
+        let qualifiedPlayers = Array.from(playersThisWeek.values());
+
+        // Filter and sort for handicap category
+        let qualifiedHandicap = [...qualifiedPlayers]
+            .sort((a, b) => {
+                if (b.totalTripleHandicap === a.totalTripleHandicap) {
+                    return b.highestSingle - a.highestSingle; // Tie-breaker
+                }
+                return b.totalTripleHandicap - a.totalTripleHandicap;
+            })
+            .slice(0, 15);
+
+        // Filter and sort for no-handicap category
+        let qualifiedNoHandicap = [...qualifiedPlayers]
+            .sort((a, b) => {
+                if (b.totalTriple === a.totalTriple) {
+                    return b.highestSingle - a.highestSingle; // Tie-breaker
+                }
+                return b.totalTriple - a.totalTriple;
+            })
+            .slice(0, 15);
+
+        // Handle duplicates: if a player is in both, keep the one with higher rank (lower rank number)
+        const finalQualifiedHandicap = [];
+        const finalQualifiedNoHandicap = [];
+        const processedPlayerIds = new Set();
+
+        qualifiedHandicap.forEach(player => {
+            const inNoHandicap = qualifiedNoHandicap.find(p => p.playerId === player.playerId);
+            if (inNoHandicap) {
+                // Player is in both lists. Compare ranks.
+                const rankInHandicap = qualifiedHandicap.indexOf(player) + 1;
+                const rankInNoHandicap = qualifiedNoHandicap.indexOf(inNoHandicap) + 1;
+
+                if (rankInHandicap <= rankInNoHandicap) {
+                    finalQualifiedHandicap.push(player);
+                } else {
+                    finalQualifiedNoHandicap.push(inNoHandicap);
+                }
+                processedPlayerIds.add(player.playerId);
+            } else {
+                finalQualifiedHandicap.push(player);
+            }
+        });
+
+        qualifiedNoHandicap.forEach(player => {
+            if (!processedPlayerIds.has(player.playerId)) {
+                finalQualifiedNoHandicap.push(player);
+            }
+        });
+
+        // Re-rank the final lists
+        finalQualifiedHandicap.forEach((player, index) => player.rank = index + 1);
+        finalQualifiedNoHandicap.forEach((player, index) => player.rank = index + 1);
+
+        // Placeholder for champions (will need a dedicated table or logic later)
+        const champions = []; 
+        if (numericWeekId > 1) {
+            // TODO: Fetch actual champions from a dedicated table or previous week's results
+            // For now, just dummy data for champions if not week 1
+            champions.push('Champion 1', 'Champion 2', 'Champion 3', 'Champion 4', 'Champion 5', 'Champion 6', 'Champion 7', 'Champion 8', 'Champion 9', 'Champion 10');
+        }
+
+        res.json({
+            qualifiedHandicap: finalQualifiedHandicap,
+            qualifiedNoHandicap: finalQualifiedNoHandicap,
+            champions
+        });
+
+    } catch (err) {
+        console.error("Erreur lors de la récupération des qualifications Matchplay:", err.message);
+        res.status(500).send('Server error');
+    } finally {
+        client.release();
+    }
+});
+
+app.listen(PORT, function() {
+  console.log(`Le serveur écoute ici : http://localhost:${PORT}`); // Démarrer le serveur et afficher un message dans la console
+});
+
+
+// |------------------------------------------------------------------------ POST ENDPOINTS API FIN ------------------------------------------------------------------------|
+
+// Matchplay Qualification Endpoint
+app.get('/api/matchplay/qualification/:weekId', async (req, res) => {
+    const { weekId } = req.params;
+    const numericWeekId = parseInt(weekId, 10);
+    const client = await pool.connect();
+
+    try {
+        // Fetch all games for the specified week
+        const gamesThisWeekQuery = `
+            SELECT
+                g."PlayerID",
+                p."PlayerName",
+                g."GameScore",
+                g."GameNumber",
+                g."IsAbsent",
+                m."MatchupID",
+                m."WeekID"
+            FROM "Game" g
+            JOIN "Player" p ON g."PlayerID" = p."PlayerID"
+            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+            WHERE m."WeekID" = $1;
+        `;
+        const gamesThisWeek = (await client.query(gamesThisWeekQuery, [numericWeekId])).rows;
+
+        // Fetch all games up to the previous week for handicap calculation
+        const gamesUpToPreviousWeekQuery = `
+            SELECT
+                g."PlayerID",
+                g."GameScore",
+                g."IsAbsent",
+                m."WeekID"
+            FROM "Game" g
+            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+            WHERE m."WeekID" < $1 AND g."IsAbsent" = FALSE;
+        `;
+        const gamesUpToPreviousWeek = (await client.query(gamesUpToPreviousWeekQuery, [numericWeekId])).rows;
+
+        // Fetch all players to ensure we have everyone, even if they didn't play this week
+        const allPlayersQuery = `SELECT "PlayerID", "PlayerName" FROM "Player";`;
+        const allPlayers = (await client.query(allPlayersQuery)).rows;
+
+        // Placeholder for champions (will need a dedicated table or logic later)
+        const champions = []; // For the first week, this will be empty.
+        if (numericWeekId > 1) {
+            // TODO: Fetch actual champions from a dedicated table or previous week's results
+            // For now, just dummy data for champions if not week 1
+            champions.push('Champion 1', 'Champion 2', 'Champion 3', 'Champion 4', 'Champion 5', 'Champion 6', 'Champion 7', 'Champion 8', 'Champion 9', 'Champion 10');
+        }
+
+        res.json({
+            gamesThisWeek,
+            gamesUpToPreviousWeek,
+            allPlayers,
+            champions
+        });
+
+    } catch (err) {
+        console.error("Erreur lors de la récupération des qualifications Matchplay:", err.message);
+        res.status(500).send('Server error');
+    } finally {
+        client.release();
+    }
+});
+
 app.listen(PORT, function() {
   console.log(`Le serveur écoute ici : http://localhost:${PORT}`); // Démarrer le serveur et afficher un message dans la console
 });

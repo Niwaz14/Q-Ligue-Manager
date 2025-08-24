@@ -1,0 +1,71 @@
+.container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  text-align: center;
+  color: var(--primary-dark);
+  margin-bottom: 30px;
+}
+
+.section {
+  background-color: var(--surface-white);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+  padding: 20px;
+}
+
+.section h2 {
+  color: var(--primary-medium);
+  margin-top: 0;
+  margin-bottom: 15px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.table th,
+.table td {
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  text-align: left;
+}
+
+.table th {
+  background-color: var(--background-light);
+  color: var(--text-dark);
+  font-weight: bold;
+}
+
+.table tbody tr:nth-child(even) {
+  background-color: var(--background-light);
+}
+
+.table tbody tr:hover {
+  background-color: var(--accent-blue);
+  color: var(--text-light);
+}
+
+.championsList {
+  list-style-type: disc;
+  padding-left: 20px;
+}
+
+.championsList li {
+  margin-bottom: 8px;
+  color: var(--text-dark);
+}
+
+.section p {
+  color: var(--text-dark);
+  font-style: italic;
+}

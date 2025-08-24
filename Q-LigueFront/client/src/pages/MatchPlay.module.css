@@ -1,0 +1,69 @@
+.container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  text-align: center;
+  color: var(--primary-dark);
+  margin-bottom: 30px;
+}
+
+.bracketsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.bracketCard {
+  background-color: var(--surface-white);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.bracketCard h2 {
+  color: var(--primary-medium);
+  margin-top: 0;
+  margin-bottom: 15px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 10px;
+  text-align: center;
+}
+
+.bracketCard h3 {
+  color: var(--text-dark);
+  margin-top: 20px;
+  text-align: center;
+}
+
+.bracketCard p {
+  margin-bottom: 5px;
+}
+
+.matchesContainer {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.matchItem {
+  background-color: var(--background-light);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.matchItem p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.matchItem p strong {
+  color: var(--text-dark);
+}

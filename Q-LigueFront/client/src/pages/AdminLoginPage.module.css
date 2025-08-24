@@ -7,6 +7,7 @@
     align-items: flex-start; 
     padding-top: 1rem; 
     min-height: 80vh;
+    margin: 3rem auto 0 auto;
 }
 
 .loginForm {
@@ -43,7 +44,7 @@
     width: 100%;
     padding: 0.8rem;
     border: none;
-    background-color: #18B2C8;
+    background-color: var(--primary-medium);
     color: white;
     font-size: 1.1rem;
     font-weight: bold;

@@ -9,6 +9,8 @@ import Bourses from './pages/Bourses';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import MatchPlayQualification from './pages/MatchPlayQualification';
+import MatchPlay from './pages/MatchPlay';
 import './App.css';
 
 const AppLayout = () => {
@@ -22,6 +24,8 @@ const AppLayout = () => {
           <Route path="/classement-equipe" element={<ClassementEquipe />} />
           <Route path="/horaire" element={<Horaire />} />
           <Route path="/bourses" element={<Bourses />} />
+          <Route path="/matchplay-qualification" element={<MatchPlayQualification />} />
+          <Route path="/matchplay-games" element={<MatchPlay />} />
           <Route path="/admin" element={<AdminLoginPage />} />
           <Route 
             path="/admin/dashboard" 

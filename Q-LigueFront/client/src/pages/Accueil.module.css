@@ -1,6 +1,6 @@
 .container {
     max-width: 900px; 
-    margin: 0 auto;   
+    margin: 3rem auto 0 auto; /* Ajout d'une marge supérieure de 2rem */
     padding: 2rem;
     background-color: var(--surface-white);
     border-radius: 8px;
@@ -20,7 +20,7 @@
 }
 
 .header p {
-    margin: 0;
+    margin:0;
     font-size: 1.1rem;
     color: var(--text-dark);
 }

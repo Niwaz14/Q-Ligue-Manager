@@ -50,11 +50,17 @@
     height: 100%;
     cursor: pointer;
     white-space: nowrap;
-    transition: color 0.2s ease-in-out;
+    transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
 }
 
 .navLink:hover {
     color: #ddd;
+    background-color: #5b92e52a; /* Subtle hover effect */
+}
+
+/* Style for the currently active navigation link */
+.activeLink {
+    background-color: var(--primary-medium);
 }
 
 .arrow {

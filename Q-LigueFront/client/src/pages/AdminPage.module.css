@@ -127,7 +127,7 @@
     font-size: 1.1rem;
     font-weight: bold;
     color: var(--text-light); 
-    background-color: var(--accent-blue); 
+    background-color: var(--primary-medium); 
     border: none;
     border-radius: 4px;
     cursor: pointer;

@@ -1,7 +1,5 @@
-/*
- * Horaire.module.css
- * Final styles with responsive table content and legend.
- */
+/*Styles finaux avec contenu de tableau réactif et légende.*/
+
 
 .container {
     max-width: 1100px;
@@ -31,9 +29,16 @@ h2 { color: var(--primary-dark); text-align: center; margin-bottom: 1.5rem; }
 .weekBlock { margin-bottom: 3rem; }
 .upcomingBlock { margin-bottom: 1rem; }
 
+.tableContainer {
+    max-height: 60vh; /* Limite la hauteur à 60% de la hauteur de la fenêtre */
+    overflow-y: auto; /* Active le défilement vertical */
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
 .scheduleTable, .upcomingTable {
     width: 100%;
-    margin: 1rem auto 0;
+    margin: 0; /* Supprime la marge car le conteneur la gère */
     border-collapse: collapse;
     font-size: 1rem;
 }
@@ -46,9 +51,12 @@ h2 { color: var(--primary-dark); text-align: center; margin-bottom: 1.5rem; }
 }
 
 .scheduleTable th, .upcomingTable th {
-    background-color: #f2f2f2; 
+    background-color: var(--primary-dark); 
+    color: white;
     font-weight: 600;
-    color: var(--primary-dark);
+    position: sticky; /* Fige l'en-tête */
+    top: 0;           /* Colle en haut du conteneur */
+    z-index: 1;       /* S'assure que l'en-tête est au-dessus du contenu du corps */
 }
 
 .scheduleTable tbody tr:nth-child(even),
@@ -62,9 +70,9 @@ h2 { color: var(--primary-dark); text-align: center; margin-bottom: 1.5rem; }
 .separatorLeft { border-left: 2px solid #ddd; }
 .separatorRight { border-right: 2px solid #ddd; }
 
-/* --- Legend Styles --- */
+/* --- Styles de la légende --- */
 .legendContainer {
-    display: none; /* Hidden by default on desktop */
+    display: none; /* Caché par défaut sur le bureau */
     margin-top: 2rem;
     padding-top: 1.5rem;
     border-top: 2px solid #f2f2f2;
@@ -83,7 +91,7 @@ h2 { color: var(--primary-dark); text-align: center; margin-bottom: 1.5rem; }
     width: 50%;
 }
 
-/* --- Responsive & Visibility Logic --- */
+/* --- Logique réactive et de visibilité --- */
 
 .mobileOnly { display: none; }
 
@@ -92,7 +100,7 @@ h2 { color: var(--primary-dark); text-align: center; margin-bottom: 1.5rem; }
 }
 
 .desktopOnlyTable {
-    /* By default, this is a table. No need to set display: table; unless overridden */
+    /* Par défaut, c'est un tableau. Pas besoin de définir display: table; sauf si surchargé */
 }
 
 .mobileTableHeader {
@@ -131,6 +139,6 @@ h2 { color: var(--primary-dark); text-align: center; margin-bottom: 1.5rem; }
 
 @media (max-width: 480px) {
     .legendList li {
-        width: 100%; /* On very small screens, switch to a single column */
+        width: 100%; /* Sur les très petits écrans, passer à une seule colonne */
     }
 }

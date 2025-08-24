@@ -32,7 +32,7 @@ main {
 
 .copyright-text {
   font-size: 0.9rem;
-  color: var(--border-color); 
+  color: white; 
   order: 2;
 }
 
@@ -42,21 +42,6 @@ main {
   order: 1;
 }
 
-.footer-button {
-  display: inline-block;
-  background-color: var(--accent-blue); 
-  color: var(--text-light);            
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  text-decoration: none;
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: bold;
-  text-align: center;
-  transition: filter 0.2s;
-}
 
 .footer-button:hover {
  

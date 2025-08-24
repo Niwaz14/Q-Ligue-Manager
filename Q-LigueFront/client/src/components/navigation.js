@@ -11,7 +11,7 @@ const Navigation = () => {
 
     const toggleMenu = () => {
         setIsOpen(!isOpen);
-        // If the main menu is being closed, also close any open submenus
+        // Si le menu principal est en cours de fermeture, fermer également tous les sous-menus ouverts
         if (isOpen) {
             setOpenSubMenu(null);
         }
@@ -24,7 +24,7 @@ const Navigation = () => {
     };
     
     const toggleSubMenu = (menuName) => {
-        // If the clicked submenu is already open, close it. Otherwise, open it.
+        // Si le sous-menu cliqué est déjà ouvert, le fermer. Sinon, l'ouvrir.
         setOpenSubMenu(openSubMenu === menuName ? null : menuName);
     };
 
@@ -36,18 +36,14 @@ const Navigation = () => {
     return (
         <nav className={styles.navbar}>
             <div className={styles.navContainer}>
-                <NavLink to="/" className={styles.navLogo}>Q-Ligue Manager</NavLink>
+                <NavLink to="/" className={styles.navLogo} onClick={closeAllMenus}>Q-Ligue Manager</NavLink>
                 
                 <div className={styles.menuIcon} onClick={toggleMenu}>
-                    &#9776; {/* Hamburger Icon */}
+                    &#9776; {/* Icône du menu hamburger */}
                 </div>
 
-                {/* This single UL is used for both desktop and mobile */}
+                {/* Cette seule liste UL est utilisée pour le bureau et le mobile */}
                 <ul className={isOpen ? `${styles.navMenu} ${styles.active}` : styles.navMenu}>
-                    <li className={styles.navItem}>
-                        <NavLink to="/" className={styles.navLink} onClick={closeAllMenus}>Accueil</NavLink>
-                    </li>
-
                     <li className={styles.navItem}>
                         <div className={styles.navLink} onClick={() => toggleSubMenu('classement')}>
                             Classement

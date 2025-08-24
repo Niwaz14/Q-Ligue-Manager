@@ -4,7 +4,7 @@ const pool = require('./db.js');
 const app = express();
 const cors = require('cors');
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000; 
@@ -17,10 +17,12 @@ app.get('/', (req, res) => {
 
 app.get('/api/teams', async (req, res) => {
   try {
+    console.log("Fetching teams from the database...");
     const allTeams = await pool.query('SELECT * FROM "Team"');
+    console.log("Teams fetched successfully:", allTeams.rows);
     res.json(allTeams.rows);
   } catch (err) {
-    console.error(err.message);
+    console.error("Error fetching teams:", err.message);
     res.status(500).send('Erreur du serveur lors de la récupération des équipes');
   }
 });

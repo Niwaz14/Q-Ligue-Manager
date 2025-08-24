@@ -2,13 +2,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap');
 
 :root {
-  --primary-dark: #3b658f;
-  --primary-medium: #5b5c5d;
-  --accent-blue: #18B2C8;
+  --primary-dark: #026468;
+  --primary-medium: #454546;
+  --accent-blue: #1b636e;
   --background-light: #ecf0f1;
   --surface-white: #ffffff;
   --text-light: #ecf0f1;
-  --text-dark: #34495e;
+  --text-dark: #1b1919;
   --border-color: #bdc3c7;
 }
 

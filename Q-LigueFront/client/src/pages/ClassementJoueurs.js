@@ -139,7 +139,7 @@ const ClassementJoueurs = () => {
     if (error) return <div className={styles.container}><p className={styles.error}>Erreur: {error}</p></div>;
 
     return (
-        <div className={styles.container}>
+        <div className={`${styles.container} ${styles.tableRoot}`}>
             <div className={styles.header}>
                 <h1>Classement des Joueurs</h1>
                 <div className={styles.weekSelectorContainer}>
@@ -163,12 +163,12 @@ const ClassementJoueurs = () => {
                     pagination: { pageSize: 120, pageIndex: 0 },
                 }}
                 enableStickyHeader
-                muiTableContainerProps={{ sx: { overflowX: 'auto' } }}
+                muiTableContainerProps={{ className: styles.tableContainer }}
                 muiTableHeadCellProps={{
                     sx: {
-                        backgroundColor: '#3b658f',
-                        color: '#ffffff',
-                        padding: '8px',
+                        backgroundColor: 'var(--mrt-header-bg-color)',
+                        color: 'var(--mrt-header-text-color)',
+                        padding: 'var(--mrt-header-padding)',
                     },
                 }}
                 muiTableBodyRowProps={({ row, table }) => {
@@ -176,13 +176,15 @@ const ClassementJoueurs = () => {
                     const rowIndex = rows.findIndex(r => r.id === row.id);
                     return {
                         sx: {
-                            backgroundColor: rowIndex % 2 === 0 ? '#f0f2f5' : '#ffffff',
+                            backgroundColor: rowIndex % 2 === 0
+                                ? 'var(--mrt-row-bg-color-even)'
+                                : 'var(--mrt-row-bg-color-odd)',
                         },
                     };
                 }}
                 muiTableBodyCellProps={{
                     sx: {
-                        padding: '2px 4px',
+                        padding: 'var(--mrt-cell-padding)',
                     },
                 }}
             />

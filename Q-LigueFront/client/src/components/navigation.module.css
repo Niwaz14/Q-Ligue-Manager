@@ -1,4 +1,4 @@
-/* --- Base Navbar Styles --- */
+/* --- Styles de base de la barre de navigation --- */
 .navbar {
     background-color: var(--primary-dark);
     height: 80px;
@@ -19,7 +19,6 @@
     width: 100%;
     max-width: 1400px;
     padding: 0 2rem;
-    position: relative; /* Acts as an anchor for the mobile dropdown */
 }
 
 .navLogo {
@@ -29,21 +28,17 @@
     font-weight: bold;
 }
 
-
 .navMenu {
     display: flex;
     list-style: none;
     text-align: center;
-    
-    /* FIX: Add these two lines to remove default browser spacing */
     padding: 0;
     margin: 0;
 }
 
-
 .navItem {
     height: 80px;
-    position: relative;
+    position: relative; /* Ancre pour le sous-menu */
 }
 
 .navLink {
@@ -55,6 +50,7 @@
     height: 100%;
     cursor: pointer;
     white-space: nowrap;
+    transition: color 0.2s ease-in-out;
 }
 
 .navLink:hover {
@@ -67,9 +63,13 @@
     transition: transform 0.3s ease;
 }
 
-/* --- Desktop Submenu --- */
+.arrowUp {
+    transform: rotate(180deg);
+}
+
+/* --- Sous-menu (basé sur le clic) --- */
 .subMenu {
-    display: none;
+    display: none; /* Caché par défaut */
     list-style: none;
     padding: 0;
     position: absolute;
@@ -79,10 +79,11 @@
     box-shadow: 0 8px 16px rgba(0,0,0,0.2);
     border-radius: 0 0 8px 8px;
     min-width: 160px;
+    z-index: 100;
 }
 
-.navItem:hover .subMenu {
-    display: block;
+.subMenuOpen {
+    display: block; /* Affiché via clic JS */
 }
 
 .subNavLink {
@@ -98,24 +99,29 @@
 }
 
 .menuIcon {
-    display: none;
+    display: none; /* Caché sur le bureau */
 }
 
-/* --- MOBILE STYLES (New Dropdown Approach) --- */
+/* --- STYLES MOBILES --- */
 @media screen and (max-width: 960px) {
     .navMenu {
-        display: none; /* Hide menu by default on mobile */
+        display: flex;
         flex-direction: column;
         width: 100%;
+        height: calc(100vh - 80px); /* Hauteur complète moins la barre de navigation */
         position: absolute;
-        top: 80px; /* Position directly below the navbar */
-        left: 0;
+        top: 80px;
+        left: -100%; /* Commence hors de l'écran */
+        opacity: 1;
+        transition: all 0.5s ease;
         background-color: #242222;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
 
     .navMenu.active {
-        display: flex; /* Show the menu when active */
+        left: 0; /* Glisse à l'intérieur */
+        opacity: 1;
+        transition: all 0.5s ease;
+        z-index: 1;
     }
 
     .menuIcon {
@@ -128,53 +134,47 @@
     .navItem {
         width: 100%;
         height: auto;
+        position: relative;
     }
     
     .navLink {
         width: 100%;
-        padding: 1rem 1.5rem;
-        justify-content: flex-start; /* Align link text to the left */
+        padding: 1.5rem;
+        justify-content: flex-start;
         text-align: left;
         border-bottom: 1px solid #444;
     }
 
     .navLink:hover {
         background-color: var(--accent-red);
-    }
-    
-    .navItem:hover .subMenu {
-        display: none;
+        color: var(--surface-white);
     }
     
     .arrow {
-        margin-left: auto; /* Push arrow to the far right */
-    }
-
-    .arrowUp {
-        transform: rotate(180deg);
+        margin-left: auto; /* Pousse la flèche à l'extrême droite */
     }
     
+    /* Sur mobile, le sous-menu n'est pas positionné de manière absolue */
     .subMenu {
         position: relative;
-        display: block;
         top: auto;
         left: auto;
         box-shadow: none;
         background-color: #333;
         width: 100%;
         border-radius: 0;
+        display: block; /* Toujours dans le DOM, visibilité contrôlée par max-height */
         max-height: 0;
         overflow: hidden;
-        transition: max-height 0.3s ease-in-out;
+        transition: max-height 0.4s ease-in-out;
     }
 
     .subMenuOpen {
-        max-height: 200px;
+        max-height: 200px; /* Animation d'ouverture */
     }
     
     .subNavLink {
-        padding: 1rem 2.5rem; /* Indent submenu links */
+        padding: 1rem 2.5rem; /* Indenter les liens du sous-menu */
         border-bottom: 1px solid #444;
-        text-align: left;
     }
 }

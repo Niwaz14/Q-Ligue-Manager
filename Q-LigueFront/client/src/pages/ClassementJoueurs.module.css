@@ -8,6 +8,14 @@
     box-shadow: 0 4px 8px rgba(0,0,0,0.05);
 }
 
+.tableRoot {
+    --mrt-header-bg-color: var(--primary-dark);
+    --mrt-header-text-color: var(--surface-white);
+    --mrt-header-padding: 8px;
+    --mrt-row-bg-color-even: #f0f2f5;
+    --mrt-row-bg-color-odd: #ffffff;
+    --mrt-cell-padding: 2px 4px;
+}
 @media (max-width: 768px) {
     .container {
         padding: 1rem;
@@ -45,4 +53,8 @@
     color: var(--accent-red);
     text-align: center;
     font-size: 1.2rem;
+}
+
+.tableContainer {
+    overflow-x: auto;
 }

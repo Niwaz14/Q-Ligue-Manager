@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
     AppBar, 
@@ -25,6 +25,7 @@ import styles from './navigation.module.css';
 function Navigation() {
     const { isAuthenticated, logout } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     
     const [mobileOpen, setMobileOpen] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
@@ -56,9 +57,15 @@ function Navigation() {
         }
     };
 
+    const handleLogout = () => {
+        logout();
+        closeAllMenusAndDrawers();
+        navigate('/'); 
+    };
+
     const isLinkActive = (path) => location.pathname === path;
     const isClassementActive = location.pathname.startsWith('/classement');
-    const isMatchPlayActive = location.pathname.startsWith('/match-play'); // Placeholder for future routes
+    const isMatchPlayActive = location.pathname.startsWith('/match-play'); 
 
     const drawer = (
         <Box sx={{ textAlign: 'center', padding: 2 }}>
@@ -107,7 +114,7 @@ function Navigation() {
                         <ListItem disablePadding component={NavLink} to="/admin/dashboard" onClick={closeAllMenusAndDrawers} sx={{ color: 'inherit', textDecoration: 'none' }}>
                            <ListItemButton><ListItemText primary="Admin" /></ListItemButton>
                         </ListItem>
-                        <ListItem disablePadding onClick={() => { logout(); closeAllMenusAndDrawers(); }}>
+                        <ListItem disablePadding onClick={handleLogout}>
                            <ListItemButton><ListItemText primary="Déconnexion" /></ListItemButton>
                         </ListItem>
                     </>
@@ -157,7 +164,7 @@ function Navigation() {
                         {isAuthenticated ? (
                              <>
                                 <Button sx={{ color: 'var(--nav-button-text-color)' }} className={isLinkActive('/admin/dashboard') ? styles.activeLink : ''} component={NavLink} to="/admin/dashboard">Admin</Button>
-                                <Button sx={{ color: 'var(--nav-button-text-color)' }} onClick={logout}>Déconnexion</Button>
+                                <Button sx={{ color: 'var(--nav-button-text-color)' }} onClick={handleLogout}>Déconnexion</Button>
                             </>
                         ) : (
                             <Button sx={{ color: 'var(--nav-button-text-color)' }} className={isLinkActive('/admin') ? styles.activeLink : ''} component={NavLink} to="/admin">Admin</Button>

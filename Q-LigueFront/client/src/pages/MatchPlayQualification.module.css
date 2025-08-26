@@ -1,71 +1,112 @@
 .container {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-  font-family: Arial, sans-serif;
+    width: 95%;
+    max-width: 1800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: var(--surface-white);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
 }
 
-h1 {
-  text-align: center;
-  color: var(--primary-dark);
-  margin-bottom: 30px;
+.tableRoot {
+    --mrt-header-bg-color: var(--primary-dark);
+    --mrt-header-text-color: var(--surface-white);
+    --mrt-header-padding: 8px;
+    --mrt-row-bg-color-even: #f0f2f5;
+    --mrt-row-bg-color-odd: #ffffff;
+    --mrt-cell-padding: 2px 4px;
 }
 
-.section {
-  background-color: var(--surface-white);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 30px;
-  padding: 20px;
+.mrtTableContainer {
+    overflow-x: auto;
 }
 
-.section h2 {
-  color: var(--primary-medium);
-  margin-top: 0;
-  margin-bottom: 15px;
-  border-bottom: 2px solid var(--border-color);
-  padding-bottom: 10px;
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+        margin: 1rem auto;
+    }
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
+.header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--accent-red);
 }
 
-.table th,
-.table td {
-  border: 1px solid var(--border-color);
-  padding: 10px;
-  text-align: left;
+.header h1 {
+    margin: 0 0 1rem 0;
+    color: var(--primary-dark);
 }
 
-.table th {
-  background-color: var(--background-light);
-  color: var(--text-dark);
-  font-weight: bold;
+.weekSelectorContainer {
+    display: inline-block;
 }
 
-.table tbody tr:nth-child(even) {
-  background-color: var(--background-light);
+.weekSelector {
+    margin-left: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    font-size: 1rem;
+    background-color: var(--surface-white);
+    color: var(--text-dark);
 }
 
-.table tbody tr:hover {
-  background-color: var(--accent-blue);
-  color: var(--text-light);
+.error {
+    color: var(--accent-red);
+    text-align: center;
+    font-size: 1.2rem;
 }
 
-.championsList {
-  list-style-type: disc;
-  padding-left: 20px;
+.tablesWrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
 }
 
-.championsList li {
-  margin-bottom: 8px;
-  color: var(--text-dark);
+.tableContainer {
+    flex: 1;
+    min-width: 300px;
+    background-color: var(--surface-white);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    padding: 20px;
 }
 
-.section p {
-  color: var(--text-dark);
-  font-style: italic;
+.tableContainer h2 {
+    text-align: center;
+    color: var(--primary-dark);
+    margin-bottom: 15px;
+}
+
+.championsContainer {
+    margin-top: 40px;
+    text-align: center;
+    background-color: var(--surface-white);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    padding: 20px;
+}
+
+.championsContainer h2 {
+    color: var(--primary-dark);
+    margin-bottom: 15px;
+}
+
+.championsContainer ul {
+    list-style: none;
+    padding: 0;
+}
+
+.championsContainer li {
+    background-color: var(--background-light);
+    margin: 5px auto;
+    padding: 10px;
+    border-radius: 4px;
+    max-width: 300px;
+    color: var(--text-dark);
 }

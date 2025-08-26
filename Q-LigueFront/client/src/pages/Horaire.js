@@ -130,7 +130,7 @@ const Horaire = () => {
                 <div className={styles.upcomingBlock}>
                     <h2>Prochaines Semaines</h2>
                     
-                    {/* Desktop Table */}
+                    {/* Tableau pour Desktop */}
                     <div className={`${styles.tableContainer} ${styles.desktopOnlyTable}`}>
                         <table className={styles.upcomingTable}>
                             <thead>
@@ -168,7 +168,7 @@ const Horaire = () => {
                         </table>
                     </div>
 
-                    {/* Mobile Tables */}
+                    {/* Tableaux pour mobile */}
                     <div className={styles.mobileOnlyTables}>
                         <h3 className={styles.mobileTableHeader}>Prochain adversaire (Semaine {parseInt(selectedWeek) + 1})</h3>
                         <div className={styles.tableContainer}>

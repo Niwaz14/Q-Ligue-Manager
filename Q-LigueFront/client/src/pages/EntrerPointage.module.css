@@ -1,0 +1,226 @@
+
+.adminContainer {
+    max-width: 1200px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 1rem auto;
+    padding: 1rem;
+    background-color: var(--surface-white);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.adminContainer h1 {
+    text-align: center;
+    color: var(--primary-dark);
+    margin-bottom: 2rem;
+}
+
+.scoreForm h2, .roster h3 {
+    text-align: center;
+    color: var(--primary-dark);
+    border-bottom: 2px solid var(--accent-red);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.instructionText {
+    text-align: center;
+    margin-bottom: 1.5rem; 
+    color: #555; 
+    font-style: italic;
+}
+
+.tableContainer {
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.scoreTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.scoreTable th, .scoreTable td {
+    padding: 0.5rem;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.scoreTable th {
+    background-color: var(--primary-dark);
+    color: var(--text-light);
+}
+
+
+.scoreTable th:nth-child(1) {
+    position: sticky;
+    left: 0;
+    z-index: 3; 
+    background-color: var(--primary-dark);
+    width: 50px; 
+}
+.scoreTable td:nth-child(1) {
+    position: sticky;
+    z-index: 2;
+    background-color: var(--primary-dark);
+    
+    color: var(--surface-white);
+    font-weight: bold;
+}
+
+
+.scoreTable th:nth-child(2) {
+    position: sticky;
+    left: 0px; 
+    z-index: 3;
+    background-color: var(--primary-dark);
+}
+.scoreTable td:nth-child(2) {
+    position: sticky;
+    left: 0px; 
+    z-index: 2;
+    background-color: var(--surface-white);
+    text-align: left; 
+}
+
+
+.scoreCell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+.scoreInput {
+    width: 70px !important;
+    padding: 0.5rem;
+    font-size: 1rem;
+    text-align: center;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    -moz-appearance: textfield;
+}
+.scoreTable input::-webkit-outer-spin-button,
+.scoreTable input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.absentLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.submitButton {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--text-light); 
+    background-color: var(--primary-medium); 
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 1.5rem;
+    transition: filter 0.2s;
+}
+
+.submitButton:hover {
+    filter: brightness(90%);
+}
+
+.dragging {
+    background-color: #e0e0e0;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.loader {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.2rem;
+}
+
+.playerName {
+    font-weight: 500;
+    white-space: normal;
+}
+
+.playerStats {
+    font-size: 0.85rem;
+    color: #555;
+    white-space: normal;
+}
+
+
+.selectionBar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.selectionBar select {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.rosterColumns {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    margin: 2rem 0;
+}
+
+.roster {
+    width: 100%;
+}
+
+/* --- Style Desktop --- */
+@media (min-width: 930px) {
+    .adminContainer {
+        margin: 2rem auto;
+        padding: 2rem;
+    }
+
+    .selectionBar {
+        flex-direction: row;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .selectionBar select {
+        width: auto;
+        min-width: 300px;
+    }
+
+    .rosterColumns {
+        flex-direction: row;
+        justify-content: space-around;
+        gap: 2rem;
+    }
+
+    .roster {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .scoreTable {
+        table-layout: fixed;
+    }
+
+    .scoreTable th, .scoreTable td {
+        padding: 0.75rem;
+    }
+}

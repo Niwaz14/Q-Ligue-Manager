@@ -99,9 +99,6 @@ h2 { color: var(--primary-dark); text-align: center; margin-bottom: 1.5rem; }
     display: none;
 }
 
-.desktopOnlyTable {
-    /* Par défaut, c'est un tableau. Pas besoin de définir display: table; sauf si surchargé */
-}
 
 .mobileTableHeader {
     margin-top: 2rem;

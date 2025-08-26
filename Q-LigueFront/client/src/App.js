@@ -8,9 +8,11 @@ import Horaire from './pages/Horaire';
 import Bourses from './pages/Bourses';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
+import EntrerPointage from './pages/EntrerPointage';
 import ProtectedRoute from './components/ProtectedRoute';
 import MatchPlayQualification from './pages/MatchPlayQualification';
 import MatchPlay from './pages/MatchPlay';
+import AdminMatchPlay from './pages/AdminMatchPlay';
 import './App.css';
 
 const AppLayout = () => {
@@ -32,6 +34,22 @@ const AppLayout = () => {
             element={
               <ProtectedRoute>
                 <AdminPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/dashboard/entrer-pointage" 
+            element={
+              <ProtectedRoute>
+                <EntrerPointage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/dashboard/match-play" 
+            element={
+              <ProtectedRoute>
+                <AdminMatchPlay />
               </ProtectedRoute>
             } 
           />

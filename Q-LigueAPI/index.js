@@ -1,8 +1,9 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const pool = require('./db.js');
 const app = express();
-const cors = require('cors');
+
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
@@ -17,9 +18,7 @@ app.get('/', (req, res) => {
 
 app.get('/api/teams', async (req, res) => {
   try {
-    console.log("Fetching teams from the database...");
     const allTeams = await pool.query('SELECT * FROM "Team"');
-    console.log("Teams fetched successfully:", allTeams.rows);
     res.json(allTeams.rows);
   } catch (err) {
     console.error("Error fetching teams:", err.message);
@@ -91,7 +90,7 @@ app.get('/api/matchup-details/:matchupId', async (req, res) => {
             `;
             const statsResult = await client.query(gamesForStatsQuery, [player.PlayerID, previousWeekId]);
             const scores = statsResult.rows.map(r => r.GameScore);
-            const average = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 150;
+            const average = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 300;
             const handicap = Math.max(0, Math.floor((240 - average) * 0.40));
             playerStats.push({ 
                 playerId: player.PlayerID, 
@@ -500,6 +499,453 @@ app.get('/api/team-rankings/:weekId', async (req, res) => {
     }
 });
 
+// |------------------------------------------------------------------------ Corrected Matchplay Endpoint v5 (Final) ------------------------------------------------------------------------|
+
+// |------------------------------------------------------------------------ Corrected Matchplay Endpoint v6 (Final) ------------------------------------------------------------------------|
+
+app.get('/api/matchplay/qualification/:week', async (req, res) => {
+    const { week } = req.params;
+    const client = await pool.connect();
+
+    try {
+        const weekNum = parseInt(week, 10);
+        const handicapBase = 240;
+        const handicapFactor = 0.40;
+        const listSize = weekNum === 1 ? 20 : 15;
+        const fetchPoolSize = 60;
+
+        const handicapQuery = `
+            SELECT
+                g."PlayerID",
+                FLOOR(GREATEST(0, ($1 - AVG(g."GameScore")) * $2)) AS handicap
+            FROM "Game" g
+            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+            WHERE m."WeekID" < $3 AND g."IsAbsent" = FALSE
+            GROUP BY g."PlayerID";
+        `;
+        const handicapRes = await client.query(handicapQuery, [handicapBase, handicapFactor, weekNum]);
+        const handicaps = new Map(handicapRes.rows.map(row => [row.PlayerID, parseInt(row.handicap, 10)]));
+
+        const weeklyScoresQuery = `
+            SELECT
+                p."PlayerID",
+                p."PlayerName",
+                g."GameScore"
+            FROM "Game" g
+            JOIN "Player" p ON g."PlayerID" = p."PlayerID"
+            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
+            WHERE m."WeekID" = $1 AND g."IsAbsent" = FALSE;
+        `;
+        const weeklyScoresRes = await client.query(weeklyScoresQuery, [weekNum]);
+
+        const playerTotals = new Map();
+        for (const row of weeklyScoresRes.rows) {
+            if (!playerTotals.has(row.PlayerID)) {
+                playerTotals.set(row.PlayerID, { player_id: row.PlayerID, name: row.PlayerName, games: [] });
+            }
+            playerTotals.get(row.PlayerID).games.push(row.GameScore);
+        }
+
+        const allPlayersThisWeek = [];
+        playerTotals.forEach(player => {
+            if (player.games.length === 3) {
+                const total_no_handicap = player.games.reduce((a, b) => a + b, 0);
+                const high_game_no_handicap = Math.max(...player.games);
+                const handicap_per_game = handicaps.get(player.player_id) || Math.floor((handicapBase - 150) * handicapFactor);
+                const total_with_handicap = total_no_handicap + (handicap_per_game * 3);
+                
+                allPlayersThisWeek.push({
+                    ...player,
+                    total_no_handicap,
+                    high_game_no_handicap,
+                    handicap_per_game,
+                    total_with_handicap
+                });
+            }
+        });
+
+        const sortedWithHandicap = [...allPlayersThisWeek].sort((a, b) => {
+            if (b.total_with_handicap === a.total_with_handicap) return b.high_game_no_handicap - a.high_game_no_handicap;
+            return b.total_with_handicap - a.total_with_handicap;
+        }).slice(0, fetchPoolSize);
+
+        const sortedWithoutHandicap = [...allPlayersThisWeek].sort((a, b) => {
+            if (b.total_no_handicap === a.total_no_handicap) return b.high_game_no_handicap - a.high_game_no_handicap;
+            return b.total_no_handicap - a.total_no_handicap;
+        }).slice(0, fetchPoolSize);
+        
+        const finalWithHandicap = [];
+        const finalWithoutHandicap = [];
+        const placedPlayerIds = new Set();
+
+        sortedWithHandicap.forEach((p, i) => p.rank = i + 1);
+        sortedWithoutHandicap.forEach((p, i) => p.rank = i + 1);
+
+        const withoutHandicapMap = new Map(sortedWithoutHandicap.map(p => [p.player_id, p]));
+
+        for (const playerH of sortedWithHandicap) {
+            const playerNH = withoutHandicapMap.get(playerH.player_id);
+            if (playerNH && playerNH.rank <= playerH.rank) {
+                if (finalWithoutHandicap.length < listSize && !placedPlayerIds.has(playerNH.player_id)) {
+                    finalWithoutHandicap.push(playerNH);
+                    placedPlayerIds.add(playerNH.player_id);
+                }
+            } else {
+                if (finalWithHandicap.length < listSize && !placedPlayerIds.has(playerH.player_id)) {
+                    finalWithHandicap.push(playerH);
+                    placedPlayerIds.add(playerH.player_id);
+                }
+            }
+        }
+        
+        for (const playerNH of sortedWithoutHandicap) {
+            if (finalWithoutHandicap.length < listSize && !placedPlayerIds.has(playerNH.player_id)) {
+                finalWithoutHandicap.push(playerNH);
+                placedPlayerIds.add(playerNH.player_id);
+            }
+        }
+        for (const playerH of sortedWithHandicap) {
+            if (finalWithHandicap.length < listSize && !placedPlayerIds.has(playerH.player_id)) {
+                finalWithHandicap.push(playerH);
+                placedPlayerIds.add(playerH.player_id);
+            }
+        }
+
+        // --- Fetch champions and add them to the final lists ---
+        let champions = [];
+        if (weekNum > 1) {
+             const championsQuery = `
+                SELECT p."PlayerName" as name
+                FROM public."MatchplayChampions" mc
+                JOIN public."Player" p ON mc."PlayerID" = p."PlayerID"
+                WHERE mc."WeekID" = $1;
+            `;
+            const championsRes = await client.query(championsQuery, [weekNum - 1]);
+            champions = championsRes.rows.map(c => c.name);
+        }
+        
+        // --- FINAL RESPONSE: Ensure 'champions' key is included ---
+        res.json({
+            withHandicap: finalWithHandicap.map(p => ({ 
+                player_id: p.player_id, 
+                name: p.name, 
+                score: p.total_with_handicap,
+            })),
+            withoutHandicap: finalWithoutHandicap.map(p => ({ 
+                player_id: p.player_id, 
+                name: p.name, 
+                score: p.total_no_handicap,
+            })),
+            champions: champions // <-- ADDED THIS KEY BACK
+        });
+
+    } catch (err) {
+        console.error("Error fetching matchplay qualification:", err.message);
+        res.status(500).send('Server Error');
+    } finally {
+        client.release();
+    }
+});
+// |------------------------------------------------------------------------ End of Matchplay Endpoint ------------------------------------------------------------------------|
+
+// |------------------------------------------------------------------------ End of Matchplay Endpoint ------------------------------------------------------------------------|
+
+function generateSingleStepladderBracket(bracketIndex, category, startPlayerId, startLane) {
+    const bracketId = `${category.toLowerCase().replace(/\s/g, '-')}-bracket-${bracketIndex}`;
+    const matches = [];
+    let currentPlayerId = startPlayerId;
+    let currentLane = startLane;
+
+    // Simulate a 3-match stepladder for simplicity in placeholder
+    // Match 1: Seed 5 vs Seed 4
+    matches.push({
+        matchId: `${bracketId}-match-1`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-Player ${5 + bracketIndex}`, seed: 5 },
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-Player ${4 + bracketIndex}`, seed: 4 }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: `${bracketId}-match-2`
+    });
+    currentLane += 2;
+
+    // Match 2: Winner of Match 1 vs Seed 3
+    matches.push({
+        matchId: `${bracketId}-match-2`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-Player ${3 + bracketIndex}`, seed: 3 },
+            { playerId: null, playerName: `Winner of ${bracketId}-match-1`, seed: "dynamic" }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: `${bracketId}-match-3`
+    });
+    currentLane += 2;
+
+    // Match 3: Winner of Match 2 vs Seed 2
+    matches.push({
+        matchId: `${bracketId}-match-3`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-Player ${2 + bracketIndex}`, seed: 2 },
+            { playerId: null, playerName: `Winner of ${bracketId}-match-2`, seed: "dynamic" }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: `${bracketId}-match-4`
+    });
+    currentLane += 2;
+
+    // Match 4: Winner of Match 3 vs Seed 1 (Championship Match)
+    matches.push({
+        matchId: `${bracketId}-match-4`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-Player ${1 + bracketIndex}`, seed: 1 },
+            { playerId: null, playerName: `Winner of ${bracketId}-match-3`, seed: "dynamic" }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: `${bracketId}-match-champion`
+    });
+    currentLane += 2;
+
+    // Match 5: Winner of Match 4 vs Previous Week's Champion
+    matches.push({
+        matchId: `${bracketId}-match-champion`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-Champion Prev`, seed: "champion" },
+            { playerId: null, playerName: `Winner of ${bracketId}-match-4`, seed: "dynamic" }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: null // Final match of this bracket
+    });
+
+    return {
+        bracketId,
+        category,
+        laneStart: `${startLane}-${startLane + 1}`, // Represents the starting lane pair for the bracket
+        matches
+    };
+}
+
+function generateSingleStepladderBracket(bracketIndex, category, startPlayerIdOffset, startLaneOffset) {
+    const bracketId = `${category.toLowerCase().replace(/\s/g, '-')}-bracket-${bracketIndex}`;
+    const matches = [];
+    let currentPlayerId = startPlayerIdOffset;
+    let currentLane = startLaneOffset;
+
+    // Simulate a 3-match stepladder for simplicity in placeholder
+    // Match 1: Seed 5 vs Seed 4
+    matches.push({
+        matchId: `${bracketId}-match-1`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-P${bracketIndex}-S5`, seed: 5 },
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-P${bracketIndex}-S4`, seed: 4 }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: `${bracketId}-match-2`
+    });
+    currentLane += 2;
+
+    // Match 2: Winner of Match 1 vs Seed 3
+    matches.push({
+        matchId: `${bracketId}-match-2`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-P${bracketIndex}-S3`, seed: 3 },
+            { playerId: null, playerName: `Winner of M1`, seed: "dynamic" }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: `${bracketId}-match-3`
+    });
+    currentLane += 2;
+
+    // Match 3: Winner of Match 2 vs Seed 2
+    matches.push({
+        matchId: `${bracketId}-match-3`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-P${bracketIndex}-S2`, seed: 2 },
+            { playerId: null, playerName: `Winner of M2`, seed: "dynamic" }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: `${bracketId}-match-4`
+    });
+    currentLane += 2;
+
+    // Match 4: Winner of Match 3 vs Seed 1 (Championship Match)
+    matches.push({
+        matchId: `${bracketId}-match-4`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-P${bracketIndex}-S1`, seed: 1 },
+            { playerId: null, playerName: `Winner of M3`, seed: "dynamic" }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: `${bracketId}-match-champion`
+    });
+    currentLane += 2;
+
+    // Match 5: Winner of Match 4 vs Previous Week's Champion
+    matches.push({
+        matchId: `${bracketId}-match-champion`,
+        lane: `${currentLane}-${currentLane + 1}`,
+        players: [
+            { playerId: currentPlayerId++, playerName: `${category.charAt(0)}-P${bracketIndex}-Champ`, seed: "champion" },
+            { playerId: null, playerName: `Winner of M4`, seed: "dynamic" }
+        ],
+        scores: { player1Score: null, player2Score: null },
+        winnerPlayerId: null,
+        nextMatchId: null // Final match of this bracket
+    });
+
+    return {
+        bracketId,
+        category,
+        laneStart: `${startLaneOffset}-${startLaneOffset + 1}`, // Represents the starting lane pair for the bracket
+        matches
+    };
+}
+
+app.get('/api/admin/matchplay/brackets/:weekId', async (req, res) => {
+    const { weekId } = req.params;
+    // This is a placeholder. Real implementation will fetch from DB and apply logic.
+    res.json({
+        weekId: parseInt(weekId, 10),
+        handicapBracket: {
+            category: "Handicap",
+            matches: [
+                {
+                    matchId: "h-match-1",
+                    lane: "5-6",
+                    players: [
+                        { playerId: 101, playerName: "H-Player 5", seed: 5 },
+                        { playerId: 102, playerName: "H-Player 4", seed: 4 }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: "h-match-2"
+                },
+                {
+                    matchId: "h-match-2",
+                    lane: "7-8",
+                    players: [
+                        { playerId: 103, playerName: "H-Player 3", seed: 3 },
+                        { playerId: null, playerName: "Winner of h-match-1", seed: "dynamic" }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: "h-match-3"
+                },
+                {
+                    matchId: "h-match-3",
+                    lane: "9-10",
+                    players: [
+                        { playerId: 104, playerName: "H-Player 2", seed: 2 },
+                        { playerId: null, playerName: "Winner of h-match-2", seed: "dynamic" }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: "h-match-4"
+                },
+                {
+                    matchId: "h-match-4",
+                    lane: "11-12",
+                    players: [
+                        { playerId: 105, playerName: "H-Player 1", seed: 1 },
+                        { playerId: null, playerName: "Winner of h-match-3", seed: "dynamic" }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: null // Final match
+                },
+                {
+                    matchId: "h-match-champion",
+                    lane: "13-14", // Example lane for champion match
+                    players: [
+                        { playerId: 106, playerName: "H-Champion Prev", seed: "champion" },
+                        { playerId: null, playerName: "Winner of h-match-4", seed: "dynamic" }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: null // Final match
+                }
+            ]
+        },
+        withoutHandicapBracket: {
+            category: "Without Handicap",
+            matches: [
+                {
+                    matchId: "nh-match-1",
+                    lane: "15-16",
+                    players: [
+                        { playerId: 201, playerName: "NH-Player 5", seed: 5 },
+                        { playerId: 202, playerName: "NH-Player 4", seed: 4 }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: "nh-match-2"
+                },
+                {
+                    matchId: "nh-match-2",
+                    lane: "17-18",
+                    players: [
+                        { playerId: 203, playerName: "NH-Player 3", seed: 3 },
+                        { playerId: null, playerName: "Winner of nh-match-1", seed: "dynamic" }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: "nh-match-3"
+                },
+                {
+                    matchId: "nh-match-3",
+                    lane: "19-20",
+                    players: [
+                        { playerId: 204, playerName: "NH-Player 2", seed: 2 },
+                        { playerId: null, playerName: "Winner of nh-match-2", seed: "dynamic" }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: "nh-match-4"
+                },
+                {
+                    matchId: "nh-match-4",
+                    lane: "21-22",
+                    players: [
+                        { playerId: 205, playerName: "NH-Player 1", seed: 1 },
+                        { playerId: null, playerName: "Winner of nh-match-3", seed: "dynamic" }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: null // Final match
+                },
+                {
+                    matchId: "nh-match-champion",
+                    lane: "23-24", // Example lane for champion match
+                    players: [
+                        { playerId: 206, playerName: "NH-Champion Prev", seed: "champion" },
+                        { playerId: null, playerName: "Winner of nh-match-4", seed: "dynamic" }
+                    ],
+                    scores: { player1Score: null, player2Score: null },
+                    winnerPlayerId: null,
+                    nextMatchId: null // Final match
+                }
+            ]
+        }
+    });
+});
+
 
 // |------------------------------------------------------------------------  GET ENDPOINTS API FIN ------------------------------------------------------------------------|
 
@@ -622,223 +1068,51 @@ app.post('/api/verify', (req, res) => { // Solution temporaire pour vérifier le
     }
 });
 
-
-// |------------------------------------------------------------------------ POST ENDPOINTS API FIN ------------------------------------------------------------------------|
-
-// Matchplay Qualification Endpoint
-app.get('/api/matchplay/qualification/:weekId', async (req, res) => {
-    const { weekId } = req.params;
-    const numericWeekId = parseInt(weekId, 10);
+app.post('/api/matchplay/champions', async (req, res) => {
+    // Expects a body like: { weekId: 1, champions: [ { playerId: 10, bracketType: 'NoHandicap' }, { playerId: 7, bracketType: 'Handicap' } ] }
+    const { weekId, champions } = req.body;
     const client = await pool.connect();
 
     try {
-        const handicapBase = 240;
-        const handicapFactor = 0.40;
+        await client.query('BEGIN');
 
-        // Fetch all players
-        const allPlayers = (await client.query('SELECT "PlayerID", "PlayerName" FROM "Player";')).rows;
+        // First, delete any existing champions for this week to prevent duplicates
+        await client.query('DELETE FROM public."MatchplayChampions" WHERE "WeekID" = $1', [weekId]);
 
-        // Fetch all games up to the current week (inclusive) for calculating current week's triples and historical averages
-        const allGamesUpToCurrentWeek = (await client.query(`
-            SELECT
-                g."PlayerID",
-                g."GameScore",
-                g."GameNumber",
-                g."IsAbsent",
-                m."WeekID"
-            FROM "Game" g
-            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
-            WHERE m."WeekID" <= $1 AND g."IsAbsent" = FALSE;
-        `, [numericWeekId])).rows;
+        // Then, insert the new champions
+        const insertQuery = `
+            INSERT INTO public."MatchplayChampions" ("PlayerID", "WeekID", "BracketType")
+            VALUES ($1, $2, $3);
+        `;
 
-        // Calculate player averages and handicaps up to the *previous* week
-        const playerStatsHistory = new Map(); // Stores average and handicap up to previous week
-        allPlayers.forEach(player => {
-            const gamesForStats = allGamesUpToCurrentWeek.filter(g => g.PlayerID === player.PlayerID && g.WeekID < numericWeekId);
-            const totalScore = gamesForStats.reduce((sum, game) => sum + game.GameScore, 0);
-            const average = gamesForStats.length > 0 ? totalScore / gamesForStats.length : 150;
-            const handicap = Math.max(0, Math.floor((handicapBase - average) * handicapFactor));
-            playerStatsHistory.set(player.PlayerID, { average, handicap });
-        });
-
-        // Process current week's games for triples and highest single game
-        const playersThisWeek = new Map(); // Stores processed data for players who played this week
-        const gamesThisWeek = allGamesUpToCurrentWeek.filter(g => g.WeekID === numericWeekId);
-
-        gamesThisWeek.forEach(game => {
-            if (!playersThisWeek.has(game.PlayerID)) {
-                const playerInfo = allPlayers.find(p => p.PlayerID === game.PlayerID);
-                playersThisWeek.set(game.PlayerID, {
-                    playerId: game.PlayerID,
-                    playerName: playerInfo.PlayerName,
-                    handicap: playerStatsHistory.get(game.PlayerID)?.handicap || 0,
-                    gameScores: [],
-                    totalTriple: 0,
-                    totalTripleHandicap: 0,
-                    highestSingle: 0,
-                });
-            }
-            const player = playersThisWeek.get(game.PlayerID);
-            player.gameScores[game.GameNumber - 1] = game.GameScore; // Store game scores
-            player.highestSingle = Math.max(player.highestSingle, game.GameScore);
-        });
-
-        // Calculate triples (with and without handicap) for players who played this week
-        playersThisWeek.forEach(player => {
-            const sumOfGames = player.gameScores.reduce((sum, score) => sum + score, 0);
-            player.totalTriple = sumOfGames;
-            player.totalTripleHandicap = sumOfGames + (player.handicap * 3);
-        });
-
-        // Convert map to array for sorting
-        let qualifiedPlayers = Array.from(playersThisWeek.values());
-
-        // Filter and sort for handicap category
-        let qualifiedHandicap = [...qualifiedPlayers]
-            .sort((a, b) => {
-                if (b.totalTripleHandicap === a.totalTripleHandicap) {
-                    return b.highestSingle - a.highestSingle; // Tie-breaker
-                }
-                return b.totalTripleHandicap - a.totalTripleHandicap;
-            })
-            .slice(0, 15);
-
-        // Filter and sort for no-handicap category
-        let qualifiedNoHandicap = [...qualifiedPlayers]
-            .sort((a, b) => {
-                if (b.totalTriple === a.totalTriple) {
-                    return b.highestSingle - a.highestSingle; // Tie-breaker
-                }
-                return b.totalTriple - a.totalTriple;
-            })
-            .slice(0, 15);
-
-        // Handle duplicates: if a player is in both, keep the one with higher rank (lower rank number)
-        const finalQualifiedHandicap = [];
-        const finalQualifiedNoHandicap = [];
-        const processedPlayerIds = new Set();
-
-        qualifiedHandicap.forEach(player => {
-            const inNoHandicap = qualifiedNoHandicap.find(p => p.playerId === player.playerId);
-            if (inNoHandicap) {
-                // Player is in both lists. Compare ranks.
-                const rankInHandicap = qualifiedHandicap.indexOf(player) + 1;
-                const rankInNoHandicap = qualifiedNoHandicap.indexOf(inNoHandicap) + 1;
-
-                if (rankInHandicap <= rankInNoHandicap) {
-                    finalQualifiedHandicap.push(player);
-                } else {
-                    finalQualifiedNoHandicap.push(inNoHandicap);
-                }
-                processedPlayerIds.add(player.playerId);
-            } else {
-                finalQualifiedHandicap.push(player);
-            }
-        });
-
-        qualifiedNoHandicap.forEach(player => {
-            if (!processedPlayerIds.has(player.playerId)) {
-                finalQualifiedNoHandicap.push(player);
-            }
-        });
-
-        // Re-rank the final lists
-        finalQualifiedHandicap.forEach((player, index) => player.rank = index + 1);
-        finalQualifiedNoHandicap.forEach((player, index) => player.rank = index + 1);
-
-        // Placeholder for champions (will need a dedicated table or logic later)
-        const champions = []; 
-        if (numericWeekId > 1) {
-            // TODO: Fetch actual champions from a dedicated table or previous week's results
-            // For now, just dummy data for champions if not week 1
-            champions.push('Champion 1', 'Champion 2', 'Champion 3', 'Champion 4', 'Champion 5', 'Champion 6', 'Champion 7', 'Champion 8', 'Champion 9', 'Champion 10');
+        for (const champion of champions) {
+            await client.query(insertQuery, [champion.playerId, weekId, champion.bracketType]);
         }
 
-        res.json({
-            qualifiedHandicap: finalQualifiedHandicap,
-            qualifiedNoHandicap: finalQualifiedNoHandicap,
-            champions
-        });
-
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Champions saved successfully.' });
     } catch (err) {
-        console.error("Erreur lors de la récupération des qualifications Matchplay:", err.message);
+        await client.query('ROLLBACK');
+        console.error("Error saving matchplay champions:", err.message);
         res.status(500).send('Server error');
     } finally {
         client.release();
     }
 });
 
-app.listen(PORT, function() {
-  console.log(`Le serveur écoute ici : http://localhost:${PORT}`); // Démarrer le serveur et afficher un message dans la console
+app.post('/api/admin/matchplay/score', async (req, res) => {
+    const { weekId, bracketId, matchId, player1Score, player2Score } = req.body;
+    console.log(`Received score for match ${matchId} in bracket ${bracketId} (Week ${weekId}): Player1 Score = ${player1Score}, Player2 Score = ${player2Score}`);
+    // Placeholder: In a real scenario, you would update the database here
+    // and potentially determine the winner and next match.
+    res.status(200).json({ message: 'Score received and processed (placeholder).' });
 });
 
 
 // |------------------------------------------------------------------------ POST ENDPOINTS API FIN ------------------------------------------------------------------------|
 
-// Matchplay Qualification Endpoint
-app.get('/api/matchplay/qualification/:weekId', async (req, res) => {
-    const { weekId } = req.params;
-    const numericWeekId = parseInt(weekId, 10);
-    const client = await pool.connect();
-
-    try {
-        // Fetch all games for the specified week
-        const gamesThisWeekQuery = `
-            SELECT
-                g."PlayerID",
-                p."PlayerName",
-                g."GameScore",
-                g."GameNumber",
-                g."IsAbsent",
-                m."MatchupID",
-                m."WeekID"
-            FROM "Game" g
-            JOIN "Player" p ON g."PlayerID" = p."PlayerID"
-            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
-            WHERE m."WeekID" = $1;
-        `;
-        const gamesThisWeek = (await client.query(gamesThisWeekQuery, [numericWeekId])).rows;
-
-        // Fetch all games up to the previous week for handicap calculation
-        const gamesUpToPreviousWeekQuery = `
-            SELECT
-                g."PlayerID",
-                g."GameScore",
-                g."IsAbsent",
-                m."WeekID"
-            FROM "Game" g
-            JOIN "Matchup" m ON g."MatchupID" = m."MatchupID"
-            WHERE m."WeekID" < $1 AND g."IsAbsent" = FALSE;
-        `;
-        const gamesUpToPreviousWeek = (await client.query(gamesUpToPreviousWeekQuery, [numericWeekId])).rows;
-
-        // Fetch all players to ensure we have everyone, even if they didn't play this week
-        const allPlayersQuery = `SELECT "PlayerID", "PlayerName" FROM "Player";`;
-        const allPlayers = (await client.query(allPlayersQuery)).rows;
-
-        // Placeholder for champions (will need a dedicated table or logic later)
-        const champions = []; // For the first week, this will be empty.
-        if (numericWeekId > 1) {
-            // TODO: Fetch actual champions from a dedicated table or previous week's results
-            // For now, just dummy data for champions if not week 1
-            champions.push('Champion 1', 'Champion 2', 'Champion 3', 'Champion 4', 'Champion 5', 'Champion 6', 'Champion 7', 'Champion 8', 'Champion 9', 'Champion 10');
-        }
-
-        res.json({
-            gamesThisWeek,
-            gamesUpToPreviousWeek,
-            allPlayers,
-            champions
-        });
-
-    } catch (err) {
-        console.error("Erreur lors de la récupération des qualifications Matchplay:", err.message);
-        res.status(500).send('Server error');
-    } finally {
-        client.release();
-    }
-});
 
 app.listen(PORT, function() {
   console.log(`Le serveur écoute ici : http://localhost:${PORT}`); // Démarrer le serveur et afficher un message dans la console
 });
+

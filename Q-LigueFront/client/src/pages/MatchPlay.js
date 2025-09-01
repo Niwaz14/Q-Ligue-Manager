@@ -1,50 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import styles from './MatchPlay.module.css';
 
+
+const MatchRowDisplay = ({ game }) => {
+    const isFinished = !!game.winner.id; // Le match est considéré comme terminé si un gagnant a un ID.
+    const p1 = game.player1;
+    const p2 = game.player2;
+
+    return (
+        <div className={styles.matchRow}>
+            {/* Applique une classe `winner` pour mettre en évidence le gagnant. */}
+            <div className={`${styles.player} ${isFinished && game.winner.id === p1.id ? styles.winner : ''}`}>
+                <span className={styles.playerName}>{p1.name || 'TBD'}</span>
+                {isFinished && <span className={styles.playerScore}>{p1.score}</span>}
+            </div>
+            <div className={styles.vs}>vs</div>
+            <div className={`${styles.player} ${isFinished && game.winner.id === p2.id ? styles.winner : ''}`}>
+                {isFinished && <span className={styles.playerScore}>{p2.score}</span>}
+                <span className={styles.playerName}>{p2.name || 'TBD'}</span>
+            </div>
+        </div>
+    );
+};
+
 const MatchPlay = () => {
+    // Gestion d'état standard et cohérente avec les autres pages de l'application.
     const [weeks, setWeeks] = useState([]);
     const [selectedWeek, setSelectedWeek] = useState('');
-    const [bracketsData, setBracketsData] = useState(null);
+    const [bracketsData, setBracketsData] = useState([]); 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // Charger la liste des semaines disponibles pour le sélecteur.
     useEffect(() => {
         const fetchScheduleForWeeks = async () => {
             try {
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
                 const data = await response.json();
-                const uniqueWeeks = [...new Set(data.map(item => item.weekid))].sort((a, b) => a - b);
-                setWeeks(uniqueWeeks);
-                if (uniqueWeeks.length > 0) {
-                    setSelectedWeek(String(uniqueWeeks.length));
+                const uniqueDates = [...new Set(data.map(item => item.weekdate))].sort((a, b) => new Date(a) - new Date(b));
+                
+                const weekData = uniqueDates.map((date, i) => ({
+                    number: i + 1,
+                    date: new Date(date).toLocaleDateString('fr-CA'),
+                }));
+                setWeeks(weekData);
+
+                if (weekData.length > 0) {
+                    setSelectedWeek(String(weekData[weekData.length - 1].number));
+                } else {
+                    setLoading(false);
                 }
-            } catch (error) {
-                console.error("Error fetching schedule for weeks:", error);
+            } catch (err) {
+                setError("Impossible de charger les données.");
+                setLoading(false);
             }
         };
         fetchScheduleForWeeks();
     }, []);
 
+    // Changer les données des brackets chaque fois que la semaine sélectionnée change.
     useEffect(() => {
         if (!selectedWeek) return;
 
         const fetchBrackets = async () => {
             setLoading(true);
             setError(null);
-            console.log(`Fetching brackets for week: ${selectedWeek}`);
-            const apiUrl = `${process.env.REACT_APP_API_URL}/api/matchplay/brackets/${selectedWeek}`;
-            console.log(`API URL: ${apiUrl}`);
             try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/matchplay/${selectedWeek}`);
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                 const data = await response.json();
-                console.log('Fetched brackets data:', data);
                 setBracketsData(data);
-            } catch (error) {
-                console.error('Error fetching brackets:', error);
-                setError('Failed to load matchplay brackets.');
+            } catch (err) {
+                setError('Impossible de charger les brackets.');
+                setBracketsData([]);
             } finally {
                 setLoading(false);
             }
@@ -52,49 +80,48 @@ const MatchPlay = () => {
         fetchBrackets();
     }, [selectedWeek]);
 
-    
-    const MatchCard = ({ match, bracketCategory }) => {
+    // Rendu de chargement
+    const renderContent = () => {
+        if (loading) return <p className={styles.message}>Chargement...</p>;
+        if (error) return <p className={`${styles.message} ${styles.error}`}>Erreur: {error}</p>;
+        if (bracketsData.length === 0) return <p className={styles.message}>Aucun bracket de match play trouvé pour la semaine {selectedWeek}.</p>;
+        
         return (
-            <div className={styles.matchCard}>
-                <h3>Match ID: {match.matchId}</h3>
-                <p>Category: {bracketCategory}</p>
-                           </div>
+            <div className={styles.bracketsGrid}>
+                {bracketsData.map(bracket => (
+                    <div key={bracket.bracketId} className={styles.bracket}>
+                        <h3>{bracket.bracketName} - Allées {bracket.laneNumber}</h3>
+                        <div className={styles.matchesContainer}>
+                            {/* Tri des matchs pour assurer un affichage correct dans le bracket. */}
+                            {bracket.games.sort((a,b) => a.matchOrder - b.matchOrder).map(game => (
+                                <MatchRowDisplay key={game.matchId} game={game} />
+                            ))}
+                        </div>
+                        <div className={styles.champion}>
+                            Champion: <span>{bracket.championName || 'TBD'}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
         );
     };
-
+    // Affichage de page.
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h1>Match Play</h1>
-                {weeks.length > 0 && (
-                    <div className={styles.weekSelectorContainer}>
-                        <label htmlFor="week-selector">Semaine: </label>
-                        <select id="week-selector" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
-                            {weeks.map(weekNum => <option key={weekNum} value={weekNum}>Semaine {weekNum}</option>)}
-                        </select>
-                    </div>
-                )}
-            </div>
-
-            {loading && <p>Chargement des brackets...</p>}
-            {error && <p className={styles.error}>Erreur: {error}</p>}
-
-            {bracketsData && !loading && !error && (
-                <div className={styles.bracketsWrapper}>
-                    <div className={styles.bracketColumn}>
-                        <h2>{bracketsData.handicapBracket.category} Bracket</h2>
-                        <div className={styles.matchList}>
-                            {bracketsData.handicapBracket.matches.map(match => <MatchCard key={match.matchId} match={match} bracketCategory='handicap' />)}
-                        </div>
-                    </div>
-                    <div className={styles.bracketColumn}>
-                        <h2>{bracketsData.withoutHandicapBracket.category} Bracket</h2>
-                        <div className={styles.matchList}>
-                            {bracketsData.withoutHandicapBracket.matches.map(match => <MatchCard key={match.matchId} match={match} bracketCategory='noHandicap' />)}
-                        </div>
-                    </div>
+                <h1>Résultats Match Play</h1>
+                <div className={styles.weekSelectorContainer}>
+                    <label htmlFor="week-selector">Semaine: </label>
+                    <select id="week-selector" className={styles.weekSelector} value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
+                        {weeks.map(weekInfo => (
+                            <option key={weekInfo.number} value={weekInfo.number}>
+                                Semaine {weekInfo.number} ({weekInfo.date})
+                            </option>
+                        ))}
+                    </select>
                 </div>
-            )}
+            </div>
+            {renderContent()}
         </div>
     );
 };

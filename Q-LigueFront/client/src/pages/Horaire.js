@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import styles from './Horaire.module.css';
 
 const Horaire = () => {
+    // Gestion d'état pour le calendrier, les listes de semaines et d'équipes, la sélection et le chargement.
     const [schedule, setSchedule] = useState([]);
     const [weeks, setWeeks] = useState([]);
     const [teams, setTeams] = useState([]);
     const [selectedWeek, setSelectedWeek] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
-
+    // Pour charger les données du calendrier.
     useEffect(() => {
         const fetchSchedule = async () => {
             try {
@@ -16,10 +17,12 @@ const Horaire = () => {
                 const data = await response.json();
                 setSchedule(data);
 
+                // Traitement des données brutes pour créer des listes uniques et triées.
                 const uniqueWeeks = [...new Map(data.map(item => [item.weekid, { weekid: item.weekid, weekdate: item.weekdate }])).values()]
                     .sort((a, b) => a.weekid - b.weekid);
                 setWeeks(uniqueWeeks);
                 
+                // Extraction de la liste de toutes les équipes à partir des matchs.
                 const allTeams = data.reduce((acc, { team1_id, team1_name, team2_id, team2_name }) => {
                     if (!acc.has(team1_id)) acc.set(team1_id, team1_name);
                     if (!acc.has(team2_id)) acc.set(team2_id, team2_name);
@@ -29,6 +32,7 @@ const Horaire = () => {
                 const sortedTeams = Array.from(allTeams.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.id - b.id);
                 setTeams(sortedTeams);
 
+                // Sélectionne la première semaine par défaut.
                 if (uniqueWeeks.length > 0) {
                     setSelectedWeek(uniqueWeeks[0].weekid);
                 }
@@ -42,11 +46,13 @@ const Horaire = () => {
         fetchSchedule();
     }, []);
 
+    // On filtre les matchs pour n'afficher que ceux de la semaine sélectionnée.
     const filteredMatchups = useMemo(() => {
         if (!selectedWeek) return [];
         return schedule.filter(match => match.weekid === parseInt(selectedWeek));
     }, [schedule, selectedWeek]);
 
+    // On détermine les prochains adversaires pour chaque équipe pour les deux semaines suivantes.
     const upcomingMatchups = useMemo(() => {
         if (!selectedWeek || teams.length === 0) return [];
         const currentWeekNumber = parseInt(selectedWeek);
@@ -94,6 +100,7 @@ const Horaire = () => {
                 </div>
             </div>
 
+            {/* Affichage des matchs de la semaine sélectionnée */}
             {filteredMatchups.length > 0 && (
                 <div className={styles.weekBlock}>
                     <h2>Matchs de la semaine {selectedWeek}</h2>
@@ -110,13 +117,9 @@ const Horaire = () => {
                             <tbody>
                                 {filteredMatchups.map((match) => (
                                     <tr key={match.matchupid}>
-                                        <td className={styles.teamName}>
-                                            #{match.team1_id}<span className={styles.desktopOnly}> - {match.team1_name}</span>
-                                        </td>
+                                        <td className={styles.teamName}>#{match.team1_id}<span className={styles.desktopOnly}> - {match.team1_name}</span></td>
                                         <td className={styles.vs}>vs</td>
-                                        <td className={styles.teamName}>
-                                            #{match.team2_id}<span className={styles.desktopOnly}> - {match.team2_name}</span>
-                                        </td>
+                                        <td className={styles.teamName}>#{match.team2_id}<span className={styles.desktopOnly}> - {match.team2_name}</span></td>
                                         <td>{match.lanenumber}</td>
                                     </tr>
                                 ))}
@@ -126,41 +129,30 @@ const Horaire = () => {
                 </div>
             )}
 
+            {/* Section pour les matchs à venir, avec une gestion d'affichage responsive. */}
             {upcomingMatchups.length > 0 && (
                 <div className={styles.upcomingBlock}>
                     <h2>Prochaines Semaines</h2>
                     
-                    {/* Tableau pour Desktop */}
+                    {/* Tableau optimisé pour les grands écrans. */}
                     <div className={`${styles.tableContainer} ${styles.desktopOnlyTable}`}>
                         <table className={styles.upcomingTable}>
                             <thead>
                                 <tr>
                                     <th>Équipe</th>
-                                    <th className={styles.separatorLeft}>
-                                        Prochain adversaire<span className={styles.desktopOnly}> (Semaine {parseInt(selectedWeek) + 1})</span>
-                                    </th>
+                                    <th className={styles.separatorLeft}>Prochain adversaire<span className={styles.desktopOnly}> (Semaine {parseInt(selectedWeek) + 1})</span></th>
                                     <th>Allée</th>
-                                    <th className={styles.separatorLeft}>
-                                        Adversaire suivant<span className={styles.desktopOnly}> (Semaine {parseInt(selectedWeek) + 2})</span>
-                                    </th>
+                                    <th className={styles.separatorLeft}>Adversaire suivant<span className={styles.desktopOnly}> (Semaine {parseInt(selectedWeek) + 2})</span></th>
                                     <th>Allée</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {upcomingMatchups.map((team) => (
                                     <tr key={team.teamId}>
-                                        <td className={styles.teamName}>
-                                            #{team.teamId}<span className={styles.desktopOnly}> - {team.teamName}</span>
-                                        </td>
-                                        <td className={styles.separatorLeft}>
-                                            {team.next1.opponentId ? `#${team.next1.opponentId}` : ''}
-                                            <span className={styles.desktopOnly}>{team.next1.opponentId ? ` - ${team.next1.opponentName}` : 'N/A'}</span>
-                                        </td>
+                                        <td className={styles.teamName}>#{team.teamId}<span className={styles.desktopOnly}> - {team.teamName}</span></td>
+                                        <td className={styles.separatorLeft}>{team.next1.opponentId ? `#${team.next1.opponentId}` : ''}<span className={styles.desktopOnly}>{team.next1.opponentId ? ` - ${team.next1.opponentName}` : 'N/A'}</span></td>
                                         <td>{team.next1.lane}</td>
-                                        <td className={styles.separatorLeft}>
-                                            {team.next2.opponentId ? `#${team.next2.opponentId}` : ''}
-                                            <span className={styles.desktopOnly}>{team.next2.opponentId ? ` - ${team.next2.opponentName}` : 'N/A'}</span>
-                                        </td>
+                                        <td className={styles.separatorLeft}>{team.next2.opponentId ? `#${team.next2.opponentId}` : ''}<span className={styles.desktopOnly}>{team.next2.opponentId ? ` - ${team.next2.opponentName}` : 'N/A'}</span></td>
                                         <td>{team.next2.lane}</td>
                                     </tr>
                                 ))}
@@ -168,18 +160,12 @@ const Horaire = () => {
                         </table>
                     </div>
 
-                    {/* Tableaux pour mobile */}
+                    {/* Pour les petits écrans, on divise l'information en deux tableaux distincts pour une meilleure lisibilité. */}
                     <div className={styles.mobileOnlyTables}>
                         <h3 className={styles.mobileTableHeader}>Prochain adversaire (Semaine {parseInt(selectedWeek) + 1})</h3>
                         <div className={styles.tableContainer}>
                             <table className={styles.upcomingTable}>
-                                <thead>
-                                    <tr>
-                                        <th>Équipe</th>
-                                        <th>Adversaire</th>
-                                        <th>Allée</th>
-                                    </tr>
-                                </thead>
+                                <thead><tr><th>Équipe</th><th>Adversaire</th><th>Allée</th></tr></thead>
                                 <tbody>
                                     {upcomingMatchups.map((team) => (
                                         <tr key={`${team.teamId}-next1`}>
@@ -195,13 +181,7 @@ const Horaire = () => {
                         <h3 className={styles.mobileTableHeader}>Adversaire suivant (Semaine {parseInt(selectedWeek) + 2})</h3>
                         <div className={styles.tableContainer}>
                             <table className={styles.upcomingTable}>
-                                <thead>
-                                    <tr>
-                                        <th>Équipe</th>
-                                        <th>Adversaire</th>
-                                        <th>Allée</th>
-                                    </tr>
-                                </thead>
+                                <thead><tr><th>Équipe</th><th>Adversaire</th><th>Allée</th></tr></thead>
                                 <tbody>
                                     {upcomingMatchups.map((team) => (
                                         <tr key={`${team.teamId}-next2`}>
@@ -217,6 +197,7 @@ const Horaire = () => {
                 </div>
             )}
             
+            {/* La légende des équipes. */}
             {teams.length > 0 && (
                 <div className={styles.legendContainer}>
                     <h3>Légende des équipes</h3>

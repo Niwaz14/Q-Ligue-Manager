@@ -1,76 +1,122 @@
 .container {
+    max-width: 1600px;
+    margin: 2rem auto;
     padding: 2rem;
-    background-color: #f4f4f9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    text-align: center;
     margin-bottom: 2rem;
-    flex-wrap: wrap;
 }
 
-.title {
+.header h1 {
+    margin: 0 0 1rem 0;
+    color: var(--primary-dark);
+}
+
+.weekSelector {
+    margin-left: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    font-size: 1rem;
+    background-color: var(--surface-white);
+    color: var(--text-dark);
+}
+
+.message {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #555;
+    padding: 3rem;
+}
+
+.error {
+    color: #c0392b;
+}
+
+.bracketsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
+
+.bracket {
+        background-color: var(--surface-white);
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.bracket h3 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #ddd;
     color: #333;
 }
 
-
-
-.bracketsWrapper {
-    display: flex;
-    justify-content: space-around;
-    gap: 2rem;
-    flex-wrap: wrap;
+.matchesContainer {
+    flex-grow: 1;
 }
 
-.bracketContainer {
-    flex: 1;
-    min-width: 350px;
-    background-color: #fff;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.bracketContainer h2 {
-    text-align: center;
-    margin-top: 0;
-    color: #444;
-}
-
-.matchList {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.match {
-    display: flex;
-    justify-content: space-between;
+.matchRow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    background-color: #f8f9fa;
-    padding: 0.75rem;
-    border-radius: 4px;
-    border-left: 4px solid #007bff;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px dashed #ccc;
+}
+
+.matchRow:last-child {
+    border-bottom: none;
 }
 
 .player {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 0.5rem;
 }
 
-.seed {
-    font-size: 0.8rem;
+.playerName {
+    font-size: 1.1em;
+}
+
+.playerScore {
     font-weight: bold;
-    color: #6c757d;
+    font-size: 1.1em;
     background-color: #e9ecef;
-    padding: 2px 6px;
-    border-radius: 3px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    min-width: 40px;
+    text-align: center;
 }
 
 .vs {
+    color: #888;
     font-weight: bold;
-    color: #dc3545;
+}
+
+.winner .playerName,
+.winner .playerScore {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.champion {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.champion span {
+    color: var(--accent-blue);
 }

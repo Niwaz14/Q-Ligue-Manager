@@ -3,17 +3,20 @@ import { MaterialReactTable } from 'material-react-table';
 import styles from './ClassementJoueurs.module.css';
 
 const ClassementJoueurs = () => {
-    const [rankings, setRankings] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [weeks, setWeeks] = useState([]);
-    const [selectedWeek, setSelectedWeek] = useState('');
+    const [rankings, setRankings] = useState([]); 
+    const [loading, setLoading] = useState(true); 
+    const [error, setError] = useState(null); 
+    const [weeks, setWeeks] = useState([]); 
+    const [selectedWeek, setSelectedWeek] = useState(''); 
+
 
     useEffect(() => {
         const fetchSchedule = async () => {
             try {
+                // Appel à l'API pour récupérer le calendrier complet.
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
                 const data = await response.json();
+                // Extraction et tri des dates uniques pour construire la liste des semaines.
                 const uniqueDates = [...new Set(data.map(item => item.weekdate))].sort((a, b) => new Date(a) - new Date(b));
                 
                 const weekData = uniqueDates.map((date, i) => ({
@@ -21,8 +24,8 @@ const ClassementJoueurs = () => {
                     date: new Date(date).toLocaleDateString('fr-CA'),
                 }));
                 setWeeks(weekData);
+                // Une fois les semaines chargées, on détermine la semaine la plus récente avec des données pour l'affichage initial. -- à changer quand DB plus complète --
                 if (weekData.length > 0) {
-                    
                     const responseRankings = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${weekData.length}`);
                     const latestRankings = await responseRankings.json();
                     const latestWeekWithGames = latestRankings.some(p => p.TotalGamesPlayed > 0) ? weekData.length : weekData.length - 1;
@@ -36,36 +39,38 @@ const ClassementJoueurs = () => {
         fetchSchedule();
     }, []);
 
+
     useEffect(() => {
-        if (!selectedWeek) return;
+        if (!selectedWeek) return; // Ne rien faire si aucune semaine n'est sélectionnée.
 
         const fetchRankings = async () => {
             setLoading(true);
             setError(null);
             try {
+                // Appel à l'API pour obtenir le classement de la semaine choisie.
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${selectedWeek}`);
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erreur du serveur: ${errorText}`);
+                    throw new Error(`Erreur du serveur`);
                 }
                 const data = await response.json();
-                setRankings(data);
+                setRankings(data); // Mise à jour de l'état avec les nouvelles données.
             } catch (error) {
                 console.error("Erreur de chargement du classement:", error);
                 setError(error.message);
             } finally {
-                setLoading(false);
+                setLoading(false); // S'assurer que l'indicateur de chargement est désactivé, même en cas d'erreur.
             }
         };
         fetchRankings();
-    }, [selectedWeek]);
+    }, [selectedWeek]); // Le tableau de dépendances [selectedWeek] est crucial ici.
 
+    // Définition des colonnes du tableau avec useMemo.
     const columns = useMemo(
         () => [
             {
                 id: 'ranking',
                 header: 'Position',
-                Cell: ({ row }) => row.index + 1,
+                Cell: ({ row }) => row.index + 1, 
                 size: 60,
             },
             { accessorKey: 'PlayerName', header: 'Joueur', size: 180 },
@@ -73,7 +78,7 @@ const ClassementJoueurs = () => {
             {
                 accessorKey: 'Average',
                 header: 'Moyenne',
-                Cell: ({ cell }) => cell.getValue()?.toFixed(2),
+                Cell: ({ cell }) => cell.getValue()?.toFixed(2), 
                 size: 100,
             },
             { accessorKey: 'TotalGamesPlayed', header: 'P.J.' },
@@ -81,6 +86,7 @@ const ClassementJoueurs = () => {
             { accessorKey: 'TotalSeasonScore', header: 'Quilles Abattues' },
             { accessorKey: 'HighestSingle', header: 'Simple Max' },
             { accessorKey: 'HighestTriple', header: 'Série Max' },
+  
             {
                 accessorKey: 'LastGame1',
                 header: 'P1',
@@ -108,6 +114,7 @@ const ClassementJoueurs = () => {
                     return isAbsent ? `A-${score}` : score;
                 },
             },
+
             {
                 accessorKey: 'Triple',
                 header: 'Série Sem.',
@@ -136,14 +143,17 @@ const ClassementJoueurs = () => {
         [],
     );
 
+    // Affichage conditionnel en cas d'erreur.
     if (error) return <div className={styles.container}><p className={styles.error}>Erreur: {error}</p></div>;
 
+    // Rendu principal du composant.
     return (
         <div className={`${styles.container} ${styles.tableRoot}`}>
             <div className={styles.header}>
                 <h1>Classement des Joueurs</h1>
                 <div className={styles.weekSelectorContainer}>
                     <label htmlFor="week-selector">Semaine: </label>
+                    {/* Le sélecteur de semaine met à jour l'état `selectedWeek`, ce qui déclenche le re-chargement des données. */}
                     <select id="week-selector" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className={styles.weekSelector}>
                         {weeks.map(weekInfo => (
                             <option key={weekInfo.number} value={weekInfo.number}>
@@ -154,16 +164,18 @@ const ClassementJoueurs = () => {
                 </div>
             </div>
             
-            <MaterialReactTable
-                columns={columns}
-                data={rankings}
-                state={{ isLoading: loading }}
+          
+            <MaterialReactTable // Utilisation de Material React Table pour afficher les données.
+                columns={columns} 
+                data={rankings} 
+                state={{ isLoading: loading }} 
                 initialState={{
-                    density: 'compact',
-                    pagination: { pageSize: 120, pageIndex: 0 },
+                    density: 'compact', 
+                    pagination: { pageSize: 120, pageIndex: 0 }, 
                 }}
-                enableStickyHeader
+                enableStickyHeader // En-tête fixe pour une meilleure lisibilité lors du défilement.
                 muiTableContainerProps={{ className: styles.tableContainer }}
+                // Personnalisation du style via les props `mui`, une pratique courante avec Material-UI.
                 muiTableHeadCellProps={{
                     sx: {
                         backgroundColor: 'var(--mrt-header-bg-color)',
@@ -175,7 +187,7 @@ const ClassementJoueurs = () => {
                     const { rows } = table.getRowModel();
                     const rowIndex = rows.findIndex(r => r.id === row.id);
                     return {
-                        sx: {
+                        sx: { // Alternance de couleurs pour les lignes pour une meilleure lisibilité.
                             backgroundColor: rowIndex % 2 === 0
                                 ? 'var(--mrt-row-bg-color-even)'
                                 : 'var(--mrt-row-bg-color-odd)',

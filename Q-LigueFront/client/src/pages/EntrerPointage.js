@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'; // Pour faire les alignements déplaçables.
 import styles from './EntrerPointage.module.css';
 
 
 const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handleAbsenceChange, isLoading }) => (
     <div className={styles.roster}>
         <h3>{team.name}</h3>
-        <div className={styles.tableContainer}> 
+        <div className={styles.tableContainer}>
+        {/* Droppable définit une zone où les éléments Draggable peuvent être déposés. */}
         <Droppable droppableId={String(team.id)}>
             {(provided) => (
                 <table className={styles.scoreTable} {...provided.droppableProps} ref={provided.innerRef}>
@@ -20,13 +21,16 @@ const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handl
                         </tr>
                     </thead>
                     <tbody>
+                        {/* Itération sur l'alignement de l'équipe pour créer une ligne par joueur. */}
                         {team.lineup.map((player, index) => (
+                            // Draggable rend chaque ligne de joueur déplaçable.
                             <Draggable key={player.playerId} draggableId={String(player.playerId)} index={index}>
                                 {(provided, snapshot) => (
                                     <tr
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
+                                        // Applique un style visuel lorsque l'élément est en cours de déplacement.
                                         className={snapshot.isDragging ? styles.dragging : ''}
                                     >
                                         <td>{index + 1}</td>
@@ -37,6 +41,7 @@ const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handl
                                                 Hcp: {player.previousWeekHcp ? player.previousWeekHcp : 'N/A'}
                                             </span>
                                         </td>
+                                        {/* Génération des 3 cellules de pointage pour chaque joueur. */}
                                         {[1, 2, 3].map(gameNumber => {
                                             const key = `${player.playerId}-${gameNumber}`;
                                             const data = gameData[key] || { score: '', isAbsent: false };
@@ -70,7 +75,7 @@ const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handl
                                 )}
                             </Draggable>
                         ))}
-                        {provided.placeholder}
+                        {provided.placeholder} 
                     </tbody>
                 </table>
             )}
@@ -80,21 +85,18 @@ const DraggableScoreTable = ({ team, setTeam, gameData, handleScoreChange, handl
 );
 
 const AdminPage = () => {
-    // --- GESTION DE L'ÉTAT ---
+    
     const [schedule, setSchedule] = useState([]);
-    const [weeks, setWeeks] = useState([]); // Now stores { number, date }
+    const [weeks, setWeeks] = useState([]);
     const [selectedWeek, setSelectedWeek] = useState('');
     const [matchupsForWeek, setMatchupsForWeek] = useState([]);
     const [selectedMatchupId, setSelectedMatchupId] = useState('');
-
-    // Simplified state: only one lineup per team
     const [team1, setTeam1] = useState({ id: null, name: 'Équipe 1', lineup: [] });
     const [team2, setTeam2] = useState({ id: null, name: 'Équipe 2', lineup: [] });
-
     const [gameData, setGameData] = useState({});
     const [isLoading, setIsLoading] = useState(false);
 
-    // --- RÉCUPÉRATION DES DONNÉES ---
+ // Pour charger le calendrier et les semaines disponibles.
     useEffect(() => {
         const fetchSchedule = async () => {
             try {
@@ -102,18 +104,14 @@ const AdminPage = () => {
                 const data = await response.json();
                 setSchedule(data);
                 const uniqueDates = [...new Set(data.map(item => item.weekdate))].sort((a, b) => new Date(a) - new Date(b));
-                
-                const weekData = uniqueDates.map((date, i) => ({
-                    number: i + 1,
-                    date: new Date(date).toLocaleDateString('fr-CA'),
-                }));
+                const weekData = uniqueDates.map((date, i) => ({ number: i + 1, date: new Date(date).toLocaleDateString('fr-CA') }));
                 setWeeks(weekData);
-
             } catch (error) { console.error("Error fetching schedule:", error); }
         };
         fetchSchedule();
     }, []);
 
+    // Même recette que pour classement joueurs et équipes.
     useEffect(() => {
         if (selectedWeek) {
             const selectedWeekInfo = weeks.find(w => w.number === parseInt(selectedWeek, 10));
@@ -124,14 +122,17 @@ const AdminPage = () => {
         } else {
             setMatchupsForWeek([]);
         }
+        // Réinitialisation des états dépendants pour éviter d'afficher des données incohérentes.
         setSelectedMatchupId('');
         setTeam1({ id: null, name: 'Équipe 1', lineup: [] });
         setTeam2({ id: null, name: 'Équipe 2', lineup: [] });
         setGameData({});
     }, [selectedWeek, schedule, weeks]);
 
+    //Idem semblable pour charger les détails du match sélectionné.
     useEffect(() => {
         if (!selectedMatchupId) {
+            // Nettoyage si aucun match n'est sélectionné.
             setTeam1({ id: null, name: 'Équipe 1', lineup: [] });
             setTeam2({ id: null, name: 'Équipe 2', lineup: [] });
             return;
@@ -146,6 +147,8 @@ const AdminPage = () => {
                 let finalLineup1 = [...data.team1.roster];
                 let finalLineup2 = [...data.team2.roster];
 
+                // Si des scores existent déjà, on les charge et on réorganise l'alignement selon les positions enregistrées.
+                // C'est crucial pour permettre la modification des scores.
                 if (data.existingGames.length > 0) {
                     const lineup1Map = new Map(data.team1.roster.map(p => [p.playerId, p]));
                     const lineup2Map = new Map(data.team2.roster.map(p => [p.playerId, p]));
@@ -155,17 +158,14 @@ const AdminPage = () => {
 
                     data.existingGames.forEach(game => {
                         if (game.lineupposition) {
-                            if (lineup1Map.has(game.playerid)) {
-                                sortedLineup1[game.lineupposition - 1] = lineup1Map.get(game.playerid);
-                            }
-                            if (lineup2Map.has(game.playerid)) {
-                                sortedLineup2[game.lineupposition - 1] = lineup2Map.get(game.playerid);
-                            }
+                            if (lineup1Map.has(game.playerid)) { sortedLineup1[game.lineupposition - 1] = lineup1Map.get(game.playerid); }
+                            if (lineup2Map.has(game.playerid)) { sortedLineup2[game.lineupposition - 1] = lineup2Map.get(game.playerid); }
                         }
                         const key = `${game.playerid}-${game.gamenumber}`;
                         initialGameData[key] = { score: game.gamescore !== null ? game.gamescore : '', isAbsent: game.isabsent };
                     });
 
+                    // Fusionne les joueurs triés avec les joueurs restants pour garantir un alignement complet.
                     finalLineup1 = sortedLineup1.filter(p => p).concat(finalLineup1.filter(p => !sortedLineup1.includes(p)));
                     finalLineup2 = sortedLineup2.filter(p => p).concat(finalLineup2.filter(p => !sortedLineup2.includes(p)));
                 }
@@ -183,19 +183,16 @@ const AdminPage = () => {
         fetchDetails();
     }, [selectedMatchupId]);
 
-    // --- GESTIONNAIRE DE GLISSER-DÉPOSER ---
+    // Appelé à la fin d'une opération de drag-and-drop.
     const onDragEnd = (result) => {
         const { source, destination } = result;
-        if (!destination) return;
-
-        if (source.droppableId !== destination.droppableId) {
-            return;
-        }
+        if (!destination || source.droppableId !== destination.droppableId) return; // Annule si le drop est hors zone ou entre deux équipes.
 
         const isTeam1 = source.droppableId === String(team1.id);
         const team = isTeam1 ? team1 : team2;
         const setTeam = isTeam1 ? setTeam1 : setTeam2;
 
+        // Logique pour réorganiser l'alignement.
         const reorderedLineup = Array.from(team.lineup);
         const [movedItem] = reorderedLineup.splice(source.index, 1);
         reorderedLineup.splice(destination.index, 0, movedItem);
@@ -203,31 +200,29 @@ const AdminPage = () => {
         setTeam(t => ({ ...t, lineup: reorderedLineup }));
     };
 
-    // --- GESTIONNAIRES DE FORMULAIRE ---
+    // Gère les changements de score dans les champs de saisie.
     const handleScoreChange = (playerId, gameNumber, score) => {
         const key = `${playerId}-${gameNumber}`;
-        const parsedScore = score.replace(/[^0-9]/g, '');
+        const parsedScore = score.replace(/[^0-9]/g, ''); 
         setGameData(prev => ({ ...prev, [key]: { ...prev[key], score: parsedScore, isAbsent: false } }));
     };
 
+    // Gère le cochage/décochage de la case "Absent".
     const handleAbsenceChange = (playerId, gameNumber, isChecked) => {
         const key = `${playerId}-${gameNumber}`;
         setGameData(prev => ({ ...prev, [key]: { score: '', isAbsent: isChecked } }));
     };
 
+    // Gère la soumission de tous les scores du match.
     const handleSubmitScores = async () => {
         setIsLoading(true);
         const scoresToSubmit = [];
         let validationError = null;
 
+        
         const processLineup = (lineup, teamName) => {
             if (validationError) return;
             
-            if (lineup.length !== 5) {
-                validationError = `L'équipe ${teamName} doit avoir 5 joueurs dans l'alignement.`;
-                return;
-            }
-
             lineup.forEach((player, index) => {
                 for (let gameNumber = 1; gameNumber <= 3; gameNumber++) {
                     const key = `${player.playerId}-${gameNumber}`;
@@ -239,6 +234,7 @@ const AdminPage = () => {
                         return;
                     }
 
+                    // Construction de l'objet à envoyer à l'API.
                     scoresToSubmit.push({
                         matchupId: selectedMatchupId, 
                         playerId: player.playerId, 
@@ -260,6 +256,7 @@ const AdminPage = () => {
             return;
         }
 
+        // Envoi des données en une seule fois (batch) pour optimiser les appels réseau.
         try {
             const response = await fetch(`${process.env.REACT_APP_API_URL}/api/scores/batch`, {
                 method: 'POST',
@@ -279,9 +276,11 @@ const AdminPage = () => {
         }
     };
 
+    // Rendu de la page.
     return (
         <div className={styles.adminContainer}>
             <h1>Gestion de Match</h1>
+            {/* Barre de sélection pour la semaine et le match. */}
             <div className={styles.selectionBar}>
                 <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
                     <option value="">Sélectionner une semaine</option>
@@ -301,6 +300,7 @@ const AdminPage = () => {
 
             {isLoading && <div className={styles.loader}>Chargement...</div>}
 
+            {/* Le formulaire de scores n'est affiché que si un match est sélectionné et que les données ne sont pas en cours de chargement. */}
             {selectedMatchupId && !isLoading && (
                 <div className={styles.scoreForm}>
                     <h2>Alignements et Pointages</h2>

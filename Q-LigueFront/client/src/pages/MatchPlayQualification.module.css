@@ -97,6 +97,14 @@
     margin-bottom: 15px;
 }
 
+.championsList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
 .championsContainer ul {
     list-style: none;
     padding: 0;
@@ -107,6 +115,10 @@
     margin: 5px auto;
     padding: 10px;
     border-radius: 4px;
-    max-width: 300px;
     color: var(--text-dark);
+}
+
+.championCategory h4 {
+    color: var(--primary-dark);
+    margin-bottom: 10px;
 }

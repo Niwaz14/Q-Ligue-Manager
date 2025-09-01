@@ -35,6 +35,7 @@
     display: block;
     padding: 15px 30px;
     background-color: var(--primary-medium, #3498db); 
+    color: white;
     text-decoration: none;
     border-radius: 8px;
     font-size: 1.2em;

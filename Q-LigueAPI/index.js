@@ -10,7 +10,7 @@ const pool = require('./db.js');    // Un module personnalisé pour gérer la co
 const app = express();
 
 
-const allowedOrigins = ['http://localhost:3001', 'https://q-ligue-manager.vercel.app/', 'https://q-ligue-manager.onrender.com'];
+const allowedOrigins = ['http://localhost:3001', 'https://q-ligue-manager.vercel.app', 'https://q-ligue-manager.onrender.com'];
 
 const corsOptions = {
   origin: (origin, callback) => {

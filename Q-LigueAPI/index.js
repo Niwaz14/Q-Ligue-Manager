@@ -643,7 +643,7 @@ app.get('/api/matchplay/:weekId', async (req, res) => {
                     games: []
                 };
             }
-            // CORRECTED: This logic now correctly pushes game data
+           
             if (row.matchId) {
                 brackets[row.bracketId].games.push({
                     matchId: row.matchId,
@@ -662,13 +662,7 @@ app.get('/api/matchplay/:weekId', async (req, res) => {
     }
 });
 
-/**
- * @route GET /api/matchplay/qualification/:week
- * @description Calculates and returns the lists of players qualified for the weekly match play tournament.
- * The logic is complex: it must find the top 15 players by score *with* handicap and the top 15 by
- * score *without* handicap, ensuring no player appears on both lists. The player's higher rank
- * determines which list they appear on. It also fetches the champions from the previous week.
- */
+
 app.get('/api/matchplay/qualification/:week', async (req, res) => {
     const { week } = req.params;
     const client = await pool.connect();
@@ -677,10 +671,10 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
         const weekNum = parseInt(week, 10);
         const handicapBase = 240;
         const handicapFactor = 0.40;
-        const listSize = weekNum === 1 ? 20 : 15; // Week 1 has more qualifiers
-        const fetchPoolSize = 60; // Fetch a larger pool initially to handle overlaps
+        const listSize = weekNum === 1 ? 20 : 15; 
+        const fetchPoolSize = 60; 
 
-        // 1. Calculate handicaps for all players based on games before the current week.
+      
         const handicapQuery = `
             SELECT
                 g."PlayerID",
@@ -693,7 +687,7 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
         const handicapRes = await client.query(handicapQuery, [handicapBase, handicapFactor, weekNum]);
         const handicaps = new Map(handicapRes.rows.map(row => [row.PlayerID, parseInt(row.handicap, 10)]));
 
-        // 2. Get all game scores for the current week.
+    
         const weeklyScoresQuery = `
             SELECT
                 p."PlayerID",
@@ -706,7 +700,7 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
         `;
         const weeklyScoresRes = await client.query(weeklyScoresQuery, [weekNum]);
 
-        // 3. Aggregate scores for players who played all 3 games.
+       
         const playerTotals = new Map();
         for (const row of weeklyScoresRes.rows) {
             if (!playerTotals.has(row.PlayerID)) {
@@ -726,14 +720,14 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
                 allPlayersThisWeek.push({
                     ...player,
                     total_no_handicap,
-                    high_game_no_handicap, // Used for tie-breaking
+                    high_game_no_handicap, 
                     handicap_per_game,
                     total_with_handicap
                 });
             }
         });
 
-        // 4. Create two sorted lists: one with handicap, one without. Tie-breaking is done by the highest single game score.
+    
         const sortedWithHandicap = [...allPlayersThisWeek].sort((a, b) => {
             if (b.total_with_handicap === a.total_with_handicap) return b.high_game_no_handicap - a.high_game_no_handicap;
             return b.total_with_handicap - a.total_with_handicap;
@@ -744,7 +738,7 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
             return b.total_no_handicap - a.total_no_handicap;
         }).slice(0, fetchPoolSize);
         
-        // 5. De-duplication Logic: Ensure a player only appears on the list where they have a better rank.
+       
         const finalWithHandicap = [];
         const finalWithoutHandicap = [];
         const placedPlayerIds = new Set();
@@ -754,7 +748,7 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
 
         const withoutHandicapMap = new Map(sortedWithoutHandicap.map(p => [p.player_id, p]));
 
-        // Iterate through the handicap list. If a player has a better rank on the non-handicap list, place them there first.
+       
         for (const playerH of sortedWithHandicap) {
             const playerNH = withoutHandicapMap.get(playerH.player_id);
             if (playerNH && playerNH.rank <= playerH.rank) {
@@ -770,7 +764,7 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
             }
         }
         
-        // Fill up any remaining spots on both lists.
+        
         for (const playerNH of sortedWithoutHandicap) {
             if (finalWithoutHandicap.length < listSize && !placedPlayerIds.has(playerNH.player_id)) {
                 finalWithoutHandicap.push(playerNH);
@@ -784,7 +778,7 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
             }
         }
 
-        // 6. Fetch the champions from the previous week, who are automatically qualified.
+
         let champions = [];
         if (weekNum > 1) {
              const championsQuery = `
@@ -797,7 +791,7 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
             champions = championsRes.rows;
         }
         
-        // 7. Send the final, clean lists to the frontend.
+     
         res.json({
             withHandicap: finalWithHandicap.map(p => ({
                 player_id: p.player_id, 
@@ -821,67 +815,7 @@ app.get('/api/matchplay/qualification/:week', async (req, res) => {
 });
 
 
-app.get('/api/matchplay/:weekId', async (req, res) => {
-    const { weekId } = req.params;
-    try {
-        const query = `
-            SELECT 
-                mb."BracketID" as "bracketId", mb."BracketName" as "bracketName", l."LaneNumber" as "laneNumber",
-                p_champ."PlayerName" as "championName",
-                mpg."MatchPlayGameID" as "matchId", mpg."MatchOrder" as "matchOrder",
-                p1."PlayerID" as "p1_id", p1."PlayerName" as "p1_name", mpg."Player1_Score" as "p1_score", mpg."Player1_Prize" as "p1_prize",
-                p2."PlayerID" as "p2_id", p2."PlayerName" as "p2_name", mpg."Player2_Score" as "p2_score", mpg."Player2_Prize" as "p2_prize",
-                winner."PlayerID" as "winner_id", winner."PlayerName" as "winner_name"
-            FROM "MatchPlayBracket" mb
-            LEFT JOIN "Lane" l ON mb."LaneID" = l."LaneID"
-            LEFT JOIN "MatchPlayGame" mpg ON mb."BracketID" = mpg."BracketID"
-            LEFT JOIN "Player" p_champ ON mb."ChampionPlayerID" = p_champ."PlayerID"
-            LEFT JOIN "Player" p1 ON mpg."Player1_ID" = p1."PlayerID"
-            LEFT JOIN "Player" p2 ON mpg."Player2_ID" = p2."PlayerID"
-            LEFT JOIN "Player" winner ON mpg."Winner_ID" = winner."PlayerID"
-            WHERE mb."WeekID" = $1
-            ORDER BY mb."BracketID", mpg."MatchOrder";
-        `;
-        const { rows } = await pool.query(query, [weekId]);
-        
-        const brackets = {};
-        rows.forEach(row => {
-            if (!brackets[row.bracketId]) {
-                brackets[row.bracketId] = {
-                    bracketId: row.bracketId,
-                    bracketName: row.bracketName,
-                    laneNumber: row.laneNumber,
-                    championName: row.championName,
-                    games: []
-                };
-            }
-            if(row.matchId) {
-                brackets[row.bracketId].games.push({
-                    matchId: row.matchId,
-                    matchOrder: row.matchOrder,
-                    player1: { id: row.p1_id, name: row.p1_name, score: row.p1_score, prize: row.p1_prize },
-                    player2: { id: row.p2_id, name: row.p2_name, score: row.p2_score, prize: row.p2_prize },
-                    winner: { id: row.winner_id, name: row.winner_name }
-                });
-            }
-        });
 
-        res.json(Object.values(brackets));
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Erreur serveur');
-    }
-});
-
-// =====================================================================================
-//                                  API ENDPOINTS (POST)
-// =====================================================================================
-
-/**
- * @route POST /api/games
- * @description A simple endpoint to submit a single game's score.
- * Note: This is less used now in favor of the `/api/scores/batch` endpoint.
- */
 app.post('/api/games', async function(req, res) {
   try {
     const { playerid, matchupid, laneid, gamenumber, gamescore } = req.body;
@@ -896,21 +830,15 @@ app.post('/api/games', async function(req, res) {
   }
 });
 
-/**
- * @route POST /api/lineup
- * @description Saves the player lineup for a specific matchup. This is typically done
- * before scores are entered. It first deletes any existing game entries for that matchup
- * to prevent duplicates, then creates 3 new (empty) game rows for each player in the lineup.
- * This uses a database transaction to ensure all operations succeed or none do.
- */
+
 app.post('/api/lineup', async (req, res) => {
     const { matchupId, team1PlayerIds, team2PlayerIds } = req.body;
     const client = await pool.connect();
     try {
-        // BEGIN starts a transaction block.
+       
         await client.query('BEGIN');
 
-        // Delete old game records to ensure a clean slate.
+        
         await client.query('DELETE FROM "Game" WHERE "MatchupID" = $1', [matchupId]);
 
         const allPlayerIds = [
@@ -924,17 +852,16 @@ app.post('/api/lineup', async (req, res) => {
         `;
 
         for (const player of allPlayerIds) {
-            // Create 3 game records for each player in the lineup.
+            
             for (let gameNumber = 1; gameNumber <= 3; gameNumber++) {
                 await client.query(queryText, [player.playerId, matchupId, gameNumber, player.lineupPosition]);
             }
         }
 
-        // COMMIT applies all the changes made during the transaction.
         await client.query('COMMIT');
         res.status(201).json({ message: 'Alignement enregistré avec succès.' });
     } catch (err) {
-        // ROLLBACK undoes all changes if any error occurred. This prevents partial data updates.
+       
         await client.query('ROLLBACK');
         console.error("Erreur lors de l'enregistrement de l'alignement:", err.message);
         res.status(500).send('Server error');
@@ -943,15 +870,7 @@ app.post('/api/lineup', async (req, res) => {
     }
 });
 
-/**
- * @route POST /api/scores/batch
- * @description The primary endpoint for saving scores from the admin page. It accepts an
- * array of score objects and uses a transaction to update or insert them all at once.
- * The `ON CONFLICT DO UPDATE` (an "upsert") is highly efficient: it updates the row if it
- * already exists (based on the unique key of PlayerID, MatchupID, GameNumber) or inserts
- * a new one if it doesn't. This single endpoint handles both initial score entry and
- * later corrections.
- */
+
 app.post('/api/scores/batch', async (req, res) => {
     const scores = req.body;
     if (!Array.isArray(scores) || scores.length === 0) {
@@ -994,17 +913,6 @@ app.post('/api/scores/batch', async (req, res) => {
     }
 });
 
-
-/**
- * @route POST /api/verify
- * @description A simple, insecure endpoint for admin "authentication". It checks if the
- * provided access code matches the one in the server's environment variables.
- *
- * **SECURITY NOTE**: This is a temporary, non-production-ready solution. It doesn't use
- * proper sessions or tokens. The frontend simply stores a "logged in" flag in browser
- * sessionStorage. This is sufficient for the MVP's low-security requirements but should
- * be replaced with a proper JWT or session-based authentication system in the future.
- */
 app.post('/api/verify', (req, res) => {
     const { accessCode } = req.body;
     
@@ -1059,7 +967,7 @@ app.post('/api/admin/matchplay/score', async (req, res) => {
             throw new Error("Aucune égalité n'est permise en match play.");
         }
 
-        // Get match details
+        
         const matchQuery = await client.query('SELECT * FROM "MatchPlayGame" WHERE "MatchPlayGameID" = $1', [matchId]);
         if (matchQuery.rows.length === 0) {
             throw new Error('Match non trouvé.');
@@ -1071,7 +979,7 @@ app.post('/api/admin/matchplay/score', async (req, res) => {
         const winnerPrize = 20.00;
         const loserPrize = 10.00;
 
-        // Update the current match with scores, winner, and prizes
+        
         const updateQuery = `
             UPDATE "MatchPlayGame" 
             SET "Player1_Score" = $1, "Player2_Score" = $2, "Winner_ID" = $3,
@@ -1087,7 +995,7 @@ app.post('/api/admin/matchplay/score', async (req, res) => {
             matchId
         ]);
 
-        // If this was not the final match, update the next match
+        
         if (matchOrder < 3) {
             const updateNextMatchQuery = `
                 UPDATE "MatchPlayGame" 
@@ -1095,7 +1003,7 @@ app.post('/api/admin/matchplay/score', async (req, res) => {
                 WHERE "BracketID" = $2 AND "MatchOrder" = $3;
             `;
             await client.query(updateNextMatchQuery, [winnerId, bracketId, nextMatchOrder]);
-        } else { // If this was the final match, update the bracket champion
+        } else { 
             const updateBracketChampionQuery = `
                 UPDATE "MatchPlayBracket" 
                 SET "ChampionPlayerID" = $1 
@@ -1230,14 +1138,14 @@ app.post('/api/admin/matchplay/setup', async (req, res) => {
 
 
 app.post('/api/admin/matchplay/bracket/update', async (req, res) => {
-    const { bracketId, games } = req.body; // Expects an array of game objects with scores
+    const { bracketId, games } = req.body; 
     const client = await pool.connect();
 
     try {
         await client.query('BEGIN');
 
         for (const game of games.sort((a, b) => a.matchOrder - b.matchOrder)) {
-            // Only process games that have scores entered
+            
             if (game.player1Score && game.player2Score) {
                 const { matchId, player1Score, player2Score } = game;
 
@@ -1245,7 +1153,7 @@ app.post('/api/admin/matchplay/bracket/update', async (req, res) => {
 
                 const matchQuery = await client.query('SELECT * FROM "MatchPlayGame" WHERE "MatchPlayGameID" = $1', [matchId]);
                 const match = matchQuery.rows[0];
-                if (!match) continue; // Skip if match not found
+                if (!match) continue; 
                 
                 const { "MatchOrder": matchOrder, "Player1_ID": p1Id, "Player2_ID": p2Id } = match;
                 const winnerId = player1Score > player2Score ? p1Id : p2Id;
@@ -1256,7 +1164,7 @@ app.post('/api/admin/matchplay/bracket/update', async (req, res) => {
 
                 if (matchOrder < 3) {
                     await client.query('UPDATE "MatchPlayGame" SET "Player1_ID" = $1 WHERE "BracketID" = $2 AND "MatchOrder" = $3;', [winnerId, bracketId, matchOrder + 1]);
-                } else { // If this was the final match, update the bracket champion
+                } else { 
                     await client.query('UPDATE "MatchPlayBracket" SET "ChampionPlayerID" = $1 WHERE "BracketID" = $2;', [winnerId, bracketId]);
                 }
             }
@@ -1282,7 +1190,7 @@ app.post('/api/admin/matchplay/save-all', async (req, res) => {
         await client.query('BEGIN');
 
         for (const bracket of brackets) {
-            // Find games that have scores but do not have a winner yet.
+            
             const gamesToUpdate = bracket.games
                 .filter(g => g.player1.score && g.player2.score && !g.winner.id)
                 .sort((a, b) => a.matchOrder - b.matchOrder);
@@ -1292,7 +1200,7 @@ app.post('/api/admin/matchplay/save-all', async (req, res) => {
                 const p1Score = parseInt(player1.score, 10);
                 const p2Score = parseInt(player2.score, 10);
 
-                // Skip this game if scores are invalid or a tie
+                
                 if (isNaN(p1Score) || isNaN(p2Score) || p1Score < 0 || p1Score > 300 || p2Score < 0 || p2Score > 300 || p1Score === p2Score) {
                     continue;
                 }
@@ -1357,17 +1265,17 @@ app.post('/api/admin/matchplay/erase', async (req, res) => {
         
         const { "BracketID": bracketId, "MatchOrder": matchOrder } = matchQuery.rows[0];
 
-        // 1. Reset the current match completely
+        
         const resetCurrentQuery = 'UPDATE "MatchPlayGame" SET "Player1_Score" = NULL, "Player2_Score" = NULL, "Winner_ID" = NULL, "Player1_Prize" = NULL, "Player2_Prize" = NULL WHERE "MatchPlayGameID" = $1;';
         await client.query(resetCurrentQuery, [matchId]);
 
-        // 2. Reset the Player1_ID of the NEXT match, as it's no longer determined
+       
         if (matchOrder < 3) {
             const resetNextQuery = 'UPDATE "MatchPlayGame" SET "Player1_ID" = NULL WHERE "BracketID" = $1 AND "MatchOrder" = $2;';
             await client.query(resetNextQuery, [bracketId, matchOrder + 1]);
         }
         
-        // 3. Nullify the champion of the bracket, since the final match has been undone
+        
         const resetChampionQuery = 'UPDATE "MatchPlayBracket" SET "ChampionPlayerID" = NULL WHERE "BracketID" = $1;';
         await client.query(resetChampionQuery, [bracketId]);
         
@@ -1383,13 +1291,7 @@ app.post('/api/admin/matchplay/erase', async (req, res) => {
 });
 
 
-// =====================================================================================
-//                                  SERVER INITIALIZATION
-// =====================================================================================
 
-/**
- * Start the server and listen for incoming connections on the specified port.
- */
 app.listen(PORT, function() {
   console.log(`Le serveur écoute ici : http://localhost:${PORT}`);
 });

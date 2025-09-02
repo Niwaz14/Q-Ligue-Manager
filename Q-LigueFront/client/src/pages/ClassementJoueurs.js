@@ -13,22 +13,25 @@ const ClassementJoueurs = () => {
     useEffect(() => {
         const fetchSchedule = async () => {
             try {
-                // Appel à l'API pour récupérer le calendrier complet.
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
                 const data = await response.json();
-                // Extraction et tri des dates uniques pour construire la liste des semaines.
-                const uniqueDates = [...new Set(data.map(item => item.weekdate))].sort((a, b) => new Date(a) - new Date(b));
-                
-                const weekData = uniqueDates.map((date, i) => ({
-                    number: i + 1,
-                    date: new Date(date).toLocaleDateString('fr-CA'),
-                }));
-                setWeeks(weekData);
-                // Une fois les semaines chargées, on détermine la semaine la plus récente avec des données pour l'affichage initial. -- à changer quand DB plus complète --
-                if (weekData.length > 0) {
-                    const responseRankings = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${weekData.length}`);
+                const weekMap = new Map();
+                data.forEach(item => {
+                    if (!weekMap.has(item.weekid)) {
+                        weekMap.set(item.weekid, {
+                            id: item.weekid,
+                            date: new Date(item.weekdate).toLocaleDateString('fr-CA')
+                        });
+                    }
+                });
+                const uniqueWeeks = Array.from(weekMap.values()).sort((a, b) => a.id - b.id);
+                setWeeks(uniqueWeeks);
+
+                if (uniqueWeeks.length > 0) {
+                    const lastWeekId = uniqueWeeks[uniqueWeeks.length - 1].id;
+                    const responseRankings = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${lastWeekId}`);
                     const latestRankings = await responseRankings.json();
-                    const latestWeekWithGames = latestRankings.some(p => p.TotalGamesPlayed > 0) ? weekData.length : weekData.length - 1;
+                    const latestWeekWithGames = latestRankings.some(p => p.TotalGamesPlayed > 0) ? lastWeekId : lastWeekId - 1;
                     setSelectedWeek(String(latestWeekWithGames > 0 ? latestWeekWithGames : 1));
                 }
             } catch (error) {
@@ -156,8 +159,8 @@ const ClassementJoueurs = () => {
                     {/* Le sélecteur de semaine met à jour l'état `selectedWeek`, ce qui déclenche le re-chargement des données. */}
                     <select id="week-selector" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className={styles.weekSelector}>
                         {weeks.map(weekInfo => (
-                            <option key={weekInfo.number} value={weekInfo.number}>
-                                Semaine {weekInfo.number} ({weekInfo.date})
+                            <option key={weekInfo.id} value={weekInfo.id}>
+                                Semaine {weekInfo.id} ({weekInfo.date})
                             </option>
                         ))}
                     </select>

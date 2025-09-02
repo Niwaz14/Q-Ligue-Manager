@@ -19,12 +19,20 @@ const MatchPlayQualification = () => {
             try {
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
                 const data = await response.json();
-                const uniqueWeekData = Array.from(new Map(data.map(item => [item.weekid, { number: item.weekid, date: new Date(item.weekdate).toLocaleDateString('fr-CA') }])).values())
-                                            .sort((a, b) => a.number - b.number);
-                setWeeks(uniqueWeekData);
+                const weekMap = new Map();
+                data.forEach(item => {
+                    if (!weekMap.has(item.weekid)) {
+                        weekMap.set(item.weekid, {
+                            id: item.weekid,
+                            date: new Date(item.weekdate).toLocaleDateString('fr-CA')
+                        });
+                    }
+                });
+                const uniqueWeeks = Array.from(weekMap.values()).sort((a, b) => a.id - b.id);
+                setWeeks(uniqueWeeks);
                 // Sélectionne la dernière semaine par défaut.
-                if (uniqueWeekData.length > 0) {
-                    setSelectedWeek(String(uniqueWeekData[uniqueWeekData.length - 1].number));
+                if (uniqueWeeks.length > 0) {
+                    setSelectedWeek(String(uniqueWeeks[uniqueWeeks.length - 1].id));
                 }
             } catch (error) {
                 console.error("Error fetching schedule for weeks:", error);
@@ -110,8 +118,8 @@ const MatchPlayQualification = () => {
                         <label htmlFor="week-selector">Semaine: </label>
                         <select id="week-selector" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className={styles.weekSelector}>
                             {weeks.map(weekInfo => (
-                                <option key={weekInfo.number} value={weekInfo.number}>
-                                    Semaine {weekInfo.number} ({weekInfo.date})
+                                <option key={weekInfo.id} value={weekInfo.id}>
+                                    Semaine {weekInfo.id} ({weekInfo.date})
                                 </option>
                             ))}
                         </select>

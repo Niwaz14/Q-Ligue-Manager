@@ -103,22 +103,29 @@ const AdminPage = () => {
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
                 const data = await response.json();
                 setSchedule(data);
-                const uniqueDates = [...new Set(data.map(item => item.weekdate))].sort((a, b) => new Date(a) - new Date(b));
-                const weekData = uniqueDates.map((date, i) => ({ number: i + 1, date: new Date(date).toLocaleDateString('fr-CA') }));
-                setWeeks(weekData);
+
+               
+                const weekMap = new Map();
+                data.forEach(item => {
+                    if (!weekMap.has(item.weekid)) {
+                        weekMap.set(item.weekid, {
+                            id: item.weekid,
+                            date: new Date(item.weekdate).toLocaleDateString('fr-CA')
+                        });
+                    }
+                });
+                const uniqueWeeks = Array.from(weekMap.values()).sort((a, b) => a.id - b.id);
+                setWeeks(uniqueWeeks);
+
             } catch (error) { console.error("Error fetching schedule:", error); }
         };
         fetchSchedule();
     }, []);
 
-    // Même recette que pour classement joueurs et équipes.
+    // Effet pour mettre à jour les matchups lorsque la semaine sélectionnée change.
     useEffect(() => {
         if (selectedWeek) {
-            const selectedWeekInfo = weeks.find(w => w.number === parseInt(selectedWeek, 10));
-            if (selectedWeekInfo) {
-                const targetDate = new Date(selectedWeekInfo.date).toISOString().split('T')[0];
-                setMatchupsForWeek(schedule.filter(item => item.weekdate.startsWith(targetDate)));
-            }
+            setMatchupsForWeek(schedule.filter(item => String(item.weekid) === selectedWeek));
         } else {
             setMatchupsForWeek([]);
         }
@@ -127,7 +134,7 @@ const AdminPage = () => {
         setTeam1({ id: null, name: 'Équipe 1', lineup: [] });
         setTeam2({ id: null, name: 'Équipe 2', lineup: [] });
         setGameData({});
-    }, [selectedWeek, schedule, weeks]);
+    }, [selectedWeek, schedule]);
 
     //Idem semblable pour charger les détails du match sélectionné.
     useEffect(() => {
@@ -285,8 +292,8 @@ const AdminPage = () => {
                 <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
                     <option value="">Sélectionner une semaine</option>
                     {weeks.map(weekInfo => (
-                        <option key={weekInfo.number} value={weekInfo.number}>
-                            Semaine {weekInfo.number} ({weekInfo.date})
+                        <option key={weekInfo.id} value={weekInfo.id}>
+                            Semaine {weekInfo.id} ({weekInfo.date})
                         </option>
                     ))}
                 </select>

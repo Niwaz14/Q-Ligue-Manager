@@ -145,11 +145,12 @@ app.get('/api/schedule', async function(req, res) {
         t1."TeamID" as team1_id,
         t2."TeamName" AS team2_name,
         t2."TeamID" as team2_id,
-        (SELECT l."LaneNumber" FROM "Lane" l JOIN "Game" g ON l."LaneID" = g."LaneID" WHERE g."MatchupID" = m."MatchupID" LIMIT 1) as lanenumber
+        l."LaneNumber" as lanenumber
       FROM "Matchup" m
       JOIN "Week" w ON m."WeekID" = w."WeekID"
       JOIN "Team" t1 ON m."Team1_ID" = t1."TeamID"
       JOIN "Team" t2 ON m."Team2_ID" = t2."TeamID"
+      LEFT JOIN "Lane" l ON m."LaneID" = l."LaneID"
       ORDER BY w."WeekDate";
     `;
     const schedule = await pool.query(scheduleQuery);
@@ -851,6 +852,13 @@ app.post('/api/lineup', async (req, res) => {
        
         await client.query('BEGIN');
 
+        // Get LaneID from Matchup
+        const matchupResult = await client.query('SELECT "LaneID" FROM "Matchup" WHERE "MatchupID" = $1', [matchupId]);
+        if (matchupResult.rows.length === 0) {
+            throw new Error('Matchup not found');
+        }
+        const laneId = matchupResult.rows[0].LaneID || 1; // Default to 1 if null
+
         
         await client.query('DELETE FROM "Game" WHERE "MatchupID" = $1', [matchupId]);
 
@@ -861,13 +869,13 @@ app.post('/api/lineup', async (req, res) => {
 
         const queryText = `
             INSERT INTO "Game" ("PlayerID", "MatchupID", "GameNumber", "GameScore", "IsAbsent", "LineupPosition", "LaneID")
-            VALUES ($1, $2, $3, 0, false, $4, 1)
+            VALUES ($1, $2, $3, 0, false, $4, $5)
         `;
 
         for (const player of allPlayerIds) {
             
             for (let gameNumber = 1; gameNumber <= 3; gameNumber++) {
-                await client.query(queryText, [player.playerId, matchupId, gameNumber, player.lineupPosition]);
+                await client.query(queryText, [player.playerId, matchupId, gameNumber, player.lineupPosition, laneId]);
             }
         }
 
@@ -893,9 +901,18 @@ app.post('/api/scores/batch', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+
+        
+        const firstMatchupId = scores[0].matchupId;
+        const matchupResult = await client.query('SELECT "LaneID" FROM "Matchup" WHERE "MatchupID" = $1', [firstMatchupId]);
+        if (matchupResult.rows.length === 0) {
+            throw new Error('Match non trouvé');
+        }
+        const laneId = matchupResult.rows[0].LaneID || 1; 
+
         const queryText = `
             INSERT INTO "Game" ("PlayerID", "MatchupID", "LaneID", "GameNumber", "GameScore", "IsAbsent", "LineupPosition")
-            VALUES ($1, $2, 1, $3, $4, $5, $6)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT ("PlayerID", "MatchupID", "GameNumber")
             DO UPDATE SET 
                 "GameScore" = EXCLUDED."GameScore", 
@@ -906,7 +923,8 @@ app.post('/api/scores/batch', async (req, res) => {
         for (const score of scores) {
             const params = [
                 score.playerId,
-                score.matchupId, 
+                score.matchupId,
+                laneId,
                 score.gameNumber,
                 score.score,
                 score.isAbsent,

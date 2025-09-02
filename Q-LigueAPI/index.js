@@ -14,7 +14,7 @@ const allowedOrigins = ['http://localhost:3001', 'https://q-ligue-manager.vercel
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (allowedOrigins.includes(origin) || !origin) {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

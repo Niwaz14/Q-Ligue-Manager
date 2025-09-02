@@ -81,12 +81,19 @@ const AdminMatchPlay = () => {
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
                 const data = await response.json();
                 if (Array.isArray(data)) {
-                    const uniqueWeeks = data.filter((week, index, self) =>
-                        index === self.findIndex((t) => (t.weekid === week.weekid))
-                    ).sort((a, b) => a.weekid - b.weekid);
+                    const weekMap = new Map();
+                    data.forEach(item => {
+                        if (!weekMap.has(item.weekid)) {
+                            weekMap.set(item.weekid, {
+                                id: item.weekid,
+                                date: new Date(item.weekdate).toLocaleDateString('fr-CA', { timeZone: 'UTC' })
+                            });
+                        }
+                    });
+                    const uniqueWeeks = Array.from(weekMap.values()).sort((a, b) => a.id - b.id);
                     setWeeks(uniqueWeeks);
                     if (uniqueWeeks.length > 0) {
-                        setSelectedWeek(String(uniqueWeeks[uniqueWeeks.length - 1].weekid));
+                        setSelectedWeek(String(uniqueWeeks[uniqueWeeks.length - 1].id));
                     }
                 }
             } catch (err) {
@@ -251,7 +258,7 @@ const AdminMatchPlay = () => {
                         <>
                             <label htmlFor="week-selector">Semaine: </label>
                             <select id="week-selector" className={styles.weekSelector} value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
-                                {weeks.map(week => <option key={week.weekid} value={week.weekid}>Semaine {week.weekid} - {new Date(week.weekdate).toLocaleDateString('fr-CA')}</option>)}
+                                {weeks.map(week => <option key={week.id} value={week.id}>Semaine {week.id} - {week.date}</option>)}
                             </select>
                         </>
                     )}

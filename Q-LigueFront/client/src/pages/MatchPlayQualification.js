@@ -15,30 +15,41 @@ const MatchPlayQualification = () => {
 
     // Charger la liste des semaines.
     useEffect(() => {
-        const fetchScheduleForWeeks = async () => {
+        const fetchScheduleAndSetLatestWeek = async () => {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
-                const data = await response.json();
+                const scheduleResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
+                const scheduleData = await scheduleResponse.json();
+                
                 const weekMap = new Map();
-                data.forEach(item => {
+                scheduleData.forEach(item => {
                     if (!weekMap.has(item.weekid)) {
                         weekMap.set(item.weekid, {
                             id: item.weekid,
-                            date: new Date(item.weekdate).toLocaleDateString('fr-CA')
+                            date: new Date(item.weekdate).toLocaleDateString('fr-CA', { timeZone: 'UTC' })
                         });
                     }
                 });
                 const uniqueWeeks = Array.from(weekMap.values()).sort((a, b) => a.id - b.id);
                 setWeeks(uniqueWeeks);
-                // Sélectionne la dernière semaine par défaut.
+
                 if (uniqueWeeks.length > 0) {
-                    setSelectedWeek(String(uniqueWeeks[uniqueWeeks.length - 1].id));
+                    let latestWeekWithData = '';
+                    for (let i = uniqueWeeks.length - 1; i >= 0; i--) {
+                        const week = uniqueWeeks[i];
+                        const qualificationResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/matchplay/qualification/${week.id}`);
+                        const qualificationData = await qualificationResponse.json();
+                        if (qualificationData.withHandicap.length > 0 || qualificationData.withoutHandicap.length > 0) {
+                            latestWeekWithData = String(week.id);
+                            break;
+                        }
+                    }
+                    setSelectedWeek(latestWeekWithData || (uniqueWeeks.length > 0 ? String(uniqueWeeks[0].id) : ''));
                 }
             } catch (error) {
-                console.error("Error fetching schedule for weeks:", error);
+                console.error("Erreur en chargeant les horaires:", error);
             }
         };
-        fetchScheduleForWeeks();
+        fetchScheduleAndSetLatestWeek();
     }, []);
 
     // Semaine changement

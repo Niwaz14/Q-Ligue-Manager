@@ -17,12 +17,18 @@ const Horaire = () => {
                 const data = await response.json();
                 setSchedule(data);
 
-                // Traitement des données brutes pour créer des listes uniques et triées.
-                const uniqueWeeks = [...new Map(data.map(item => [item.weekid, { weekid: item.weekid, weekdate: item.weekdate }])).values()]
-                    .sort((a, b) => a.weekid - b.weekid);
+                const weekMap = new Map();
+                data.forEach(item => {
+                    if (!weekMap.has(item.weekid)) {
+                        weekMap.set(item.weekid, {
+                            id: item.weekid,
+                            date: new Date(item.weekdate)
+                        });
+                    }
+                });
+                const uniqueWeeks = Array.from(weekMap.values()).sort((a, b) => a.id - b.id);
                 setWeeks(uniqueWeeks);
                 
-                // Extraction de la liste de toutes les équipes à partir des matchs.
                 const allTeams = data.reduce((acc, { team1_id, team1_name, team2_id, team2_name }) => {
                     if (!acc.has(team1_id)) acc.set(team1_id, team1_name);
                     if (!acc.has(team2_id)) acc.set(team2_id, team2_name);
@@ -32,9 +38,21 @@ const Horaire = () => {
                 const sortedTeams = Array.from(allTeams.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.id - b.id);
                 setTeams(sortedTeams);
 
-                // Sélectionne la première semaine par défaut.
                 if (uniqueWeeks.length > 0) {
-                    setSelectedWeek(uniqueWeeks[0].weekid);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    let closestWeek = uniqueWeeks[0].id;
+                    let smallestDiff = Infinity;
+
+                    uniqueWeeks.forEach(week => {
+                        const weekDate = new Date(week.date);
+                        const diff = Math.abs(weekDate - today);
+                        if (diff < smallestDiff) {
+                            smallestDiff = diff;
+                            closestWeek = week.id;
+                        }
+                    });
+                    setSelectedWeek(closestWeek);
                 }
             } catch (error) {
                 console.error("Erreur lors de la récupération de l'horaire:", error);
@@ -92,8 +110,8 @@ const Horaire = () => {
                     <label htmlFor="week-selector">Semaine: </label>
                     <select id="week-selector" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className={styles.weekSelector}>
                         {weeks.map(week => (
-                            <option key={week.weekid} value={week.weekid}>
-                                Semaine {week.weekid} ({new Date(week.weekdate).toLocaleDateString('fr-CA')})
+                            <option key={week.id} value={week.id}>
+                                Semaine {week.id} ({new Date(week.date).toLocaleDateString('fr-CA', { timeZone: 'UTC' })})
                             </option>
                         ))}
                     </select>

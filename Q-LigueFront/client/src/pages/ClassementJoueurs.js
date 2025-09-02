@@ -11,16 +11,17 @@ const ClassementJoueurs = () => {
 
 
     useEffect(() => {
-        const fetchSchedule = async () => {
+        const fetchScheduleAndSetLatestWeek = async () => {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
-                const data = await response.json();
+                const scheduleResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
+                const scheduleData = await scheduleResponse.json();
+                
                 const weekMap = new Map();
-                data.forEach(item => {
+                scheduleData.forEach(item => {
                     if (!weekMap.has(item.weekid)) {
                         weekMap.set(item.weekid, {
                             id: item.weekid,
-                            date: new Date(item.weekdate).toLocaleDateString('fr-CA')
+                            date: new Date(item.weekdate).toLocaleDateString('fr-CA', { timeZone: 'UTC' })
                         });
                     }
                 });
@@ -28,46 +29,53 @@ const ClassementJoueurs = () => {
                 setWeeks(uniqueWeeks);
 
                 if (uniqueWeeks.length > 0) {
-                    const lastWeekId = uniqueWeeks[uniqueWeeks.length - 1].id;
-                    const responseRankings = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${lastWeekId}`);
-                    const latestRankings = await responseRankings.json();
-                    const latestWeekWithGames = latestRankings.some(p => p.TotalGamesPlayed > 0) ? lastWeekId : lastWeekId - 1;
-                    setSelectedWeek(String(latestWeekWithGames > 0 ? latestWeekWithGames : 1));
+                    let latestWeekWithData = '';
+                    for (let i = uniqueWeeks.length - 1; i >= 0; i--) {
+                        const week = uniqueWeeks[i];
+                        const rankingsResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${week.id}`);
+                        const rankingsData = await rankingsResponse.json();
+                        if (rankingsData.some(p => p.TotalGamesPlayed > 0)) {
+                            latestWeekWithData = String(week.id);
+                            break;
+                        }
+                    }
+                    setSelectedWeek(latestWeekWithData || (uniqueWeeks.length > 0 ? String(uniqueWeeks[0].id) : ''));
                 }
             } catch (error) {
-                console.error("Error fetching schedule:", error);
-                setError("Could not load schedule data.");
+                console.error("Erreur impossible de charger la semaine", error);
+                setError("Erreur impossible de charger la semaine");
             }
         };
-        fetchSchedule();
+        fetchScheduleAndSetLatestWeek();
     }, []);
 
 
     useEffect(() => {
-        if (!selectedWeek) return; // Ne rien faire si aucune semaine n'est sélectionnée.
+        if (!selectedWeek) {
+            setLoading(false);
+            return;
+        }
 
         const fetchRankings = async () => {
             setLoading(true);
             setError(null);
             try {
-                // Appel à l'API pour obtenir le classement de la semaine choisie.
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/rankings/${selectedWeek}`);
                 if (!response.ok) {
                     throw new Error(`Erreur du serveur`);
                 }
                 const data = await response.json();
-                setRankings(data); // Mise à jour de l'état avec les nouvelles données.
+                setRankings(data);
             } catch (error) {
                 console.error("Erreur de chargement du classement:", error);
                 setError(error.message);
             } finally {
-                setLoading(false); // S'assurer que l'indicateur de chargement est désactivé, même en cas d'erreur.
+                setLoading(false);
             }
         };
         fetchRankings();
-    }, [selectedWeek]); // Le tableau de dépendances [selectedWeek] est crucial ici.
+    }, [selectedWeek]);
 
-    // Définition des colonnes du tableau avec useMemo.
     const columns = useMemo(
         () => [
             {
@@ -146,17 +154,14 @@ const ClassementJoueurs = () => {
         [],
     );
 
-    // Affichage conditionnel en cas d'erreur.
     if (error) return <div className={styles.container}><p className={styles.error}>Erreur: {error}</p></div>;
 
-    // Rendu principal du composant.
     return (
         <div className={`${styles.container} ${styles.tableRoot}`}>
             <div className={styles.header}>
                 <h1>Classement des Joueurs</h1>
                 <div className={styles.weekSelectorContainer}>
                     <label htmlFor="week-selector">Semaine: </label>
-                    {/* Le sélecteur de semaine met à jour l'état `selectedWeek`, ce qui déclenche le re-chargement des données. */}
                     <select id="week-selector" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className={styles.weekSelector}>
                         {weeks.map(weekInfo => (
                             <option key={weekInfo.id} value={weekInfo.id}>
@@ -168,7 +173,7 @@ const ClassementJoueurs = () => {
             </div>
             
           
-            <MaterialReactTable // Utilisation de Material React Table pour afficher les données.
+            <MaterialReactTable
                 columns={columns} 
                 data={rankings} 
                 state={{ isLoading: loading }} 
@@ -176,9 +181,8 @@ const ClassementJoueurs = () => {
                     density: 'compact', 
                     pagination: { pageSize: 120, pageIndex: 0 }, 
                 }}
-                enableStickyHeader // En-tête fixe pour une meilleure lisibilité lors du défilement.
+                enableStickyHeader
                 muiTableContainerProps={{ className: styles.tableContainer }}
-                // Personnalisation du style via les props `mui`, une pratique courante avec Material-UI.
                 muiTableHeadCellProps={{
                     sx: {
                         backgroundColor: 'var(--mrt-header-bg-color)',
@@ -190,7 +194,7 @@ const ClassementJoueurs = () => {
                     const { rows } = table.getRowModel();
                     const rowIndex = rows.findIndex(r => r.id === row.id);
                     return {
-                        sx: { // Alternance de couleurs pour les lignes pour une meilleure lisibilité.
+                        sx: { 
                             backgroundColor: rowIndex % 2 === 0
                                 ? 'var(--mrt-row-bg-color-even)'
                                 : 'var(--mrt-row-bg-color-odd)',

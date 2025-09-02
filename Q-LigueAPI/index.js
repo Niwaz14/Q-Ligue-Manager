@@ -156,7 +156,6 @@ app.get('/api/schedule', async function(req, res) {
     const schedule = await pool.query(scheduleQuery);
     res.json(schedule.rows);
   } catch (err) {
-    console.error("Erreur du serveur lors de la récupération de l'horaire:", err.message);
     res.status(500).send("Erreur du serveur lors de la récupération de l'horaire");
   }
 });

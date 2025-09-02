@@ -33,16 +33,17 @@ const MatchPlay = () => {
 
     // Charger la liste des semaines disponibles pour le sélecteur.
     useEffect(() => {
-        const fetchScheduleForWeeks = async () => {
+        const fetchScheduleAndSetLatestWeek = async () => {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
-                const data = await response.json();
+                const scheduleResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
+                const scheduleData = await scheduleResponse.json();
+                
                 const weekMap = new Map();
-                data.forEach(item => {
+                scheduleData.forEach(item => {
                     if (!weekMap.has(item.weekid)) {
                         weekMap.set(item.weekid, {
                             id: item.weekid,
-                            date: new Date(item.weekdate).toLocaleDateString('fr-CA')
+                            date: new Date(item.weekdate).toLocaleDateString('fr-CA', { timeZone: 'UTC' })
                         });
                     }
                 });
@@ -50,16 +51,25 @@ const MatchPlay = () => {
                 setWeeks(uniqueWeeks);
 
                 if (uniqueWeeks.length > 0) {
-                    setSelectedWeek(String(uniqueWeeks[uniqueWeeks.length - 1].id));
-                } else {
-                    setLoading(false);
+                    let latestWeekWithData = '';
+                    for (let i = uniqueWeeks.length - 1; i >= 0; i--) {
+                        const week = uniqueWeeks[i];
+                        const matchPlayResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/matchplay/${week.id}`);
+                        const matchPlayData = await matchPlayResponse.json();
+                        if (matchPlayData.length > 0) {
+                            latestWeekWithData = String(week.id);
+                            break;
+                        }
+                    }
+                    setSelectedWeek(latestWeekWithData || (uniqueWeeks.length > 0 ? String(uniqueWeeks[0].id) : ''));
                 }
             } catch (err) {
                 setError("Impossible de charger les données.");
+            } finally {
                 setLoading(false);
             }
         };
-        fetchScheduleForWeeks();
+        fetchScheduleAndSetLatestWeek();
     }, []);
 
     // Changer les données des brackets chaque fois que la semaine sélectionnée change.

@@ -104,20 +104,22 @@ const AdminPage = () => {
                 const data = await response.json();
                 setSchedule(data);
 
-               
                 const weekMap = new Map();
                 data.forEach(item => {
                     if (!weekMap.has(item.weekid)) {
                         weekMap.set(item.weekid, {
                             id: item.weekid,
-                            date: new Date(item.weekdate).toLocaleDateString('fr-CA')
+                            date: new Date(item.weekdate).toLocaleDateString('fr-CA', { timeZone: 'UTC' })
                         });
                     }
                 });
                 const uniqueWeeks = Array.from(weekMap.values()).sort((a, b) => a.id - b.id);
                 setWeeks(uniqueWeeks);
+                if (uniqueWeeks.length > 0) {
+                    setSelectedWeek(String(uniqueWeeks[uniqueWeeks.length - 1].id));
+                }
 
-            } catch (error) { console.error("Error fetching schedule:", error); }
+            } catch (error) { console.error("Erreur en chargeant l'horaire", error); }
         };
         fetchSchedule();
     }, []);
@@ -182,7 +184,7 @@ const AdminPage = () => {
                 setTeam2({ ...data.team2, lineup: finalLineup2 });
 
             } catch (error) { 
-                console.error("Error fetching matchup details:", error); 
+                console.error("Erreur en chargeant les matchs", error); 
             } finally {
                 setIsLoading(false);
             }

@@ -10,41 +10,54 @@ const ClassementEquipe = () => {
     const [selectedWeek, setSelectedWeek] = useState('');
 
     useEffect(() => {
-        const fetchSchedule = async () => {
+        const fetchScheduleAndSetLatestWeek = async () => {
             try {
-                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
-                const data = await response.json();
+                const scheduleResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/schedule`);
+                const scheduleData = await scheduleResponse.json();
+                
                 const weekMap = new Map();
-                data.forEach(item => {
+                scheduleData.forEach(item => {
                     if (!weekMap.has(item.weekid)) {
                         weekMap.set(item.weekid, {
                             id: item.weekid,
-                            date: new Date(item.weekdate).toLocaleDateString('fr-CA')
+                            date: new Date(item.weekdate).toLocaleDateString('fr-CA', { timeZone: 'UTC' })
                         });
                     }
                 });
                 const uniqueWeeks = Array.from(weekMap.values()).sort((a, b) => a.id - b.id);
                 setWeeks(uniqueWeeks);
+
                 if (uniqueWeeks.length > 0) {
-                    setSelectedWeek(String(uniqueWeeks[uniqueWeeks.length - 1].id));
+                    let latestWeekWithData = '';
+                    for (let i = uniqueWeeks.length - 1; i >= 0; i--) {
+                        const week = uniqueWeeks[i];
+                        const rankingsResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/team-rankings/${week.id}`);
+                        const rankingsData = await rankingsResponse.json();
+                        if (rankingsData.some(t => t.totalPoints > 0)) { 
+                            latestWeekWithData = String(week.id);
+                            break;
+                        }
+                    }
+                    setSelectedWeek(latestWeekWithData || (uniqueWeeks.length > 0 ? String(uniqueWeeks[0].id) : ''));
                 }
             } catch (error) {
-                console.error("Error à la récupération de l'horaire:", error);
-                setError("Impossible de charger l'horaire.");
+                console.error("Erreur impossible de charger la semaine", error);
+                setError("Erreur impossible de charger la semaine");
             }
         };
-        fetchSchedule();
+        fetchScheduleAndSetLatestWeek();
     }, []); 
 
-    // Chargement des données de classement chaque fois que la semaine sélectionnée change.
     useEffect(() => {
-        if (!selectedWeek) return;
+        if (!selectedWeek) {
+            setLoading(false);
+            return;
+        }
 
         const fetchRankings = async () => {
             setLoading(true);
             setError(null);
             try {
-                // Appel à l'API pour récupérer le classement des équipes pour la semaine sélectionnée.
                 const response = await fetch(`${process.env.REACT_APP_API_URL}/api/team-rankings/${selectedWeek}`);
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -62,13 +75,12 @@ const ClassementEquipe = () => {
         fetchRankings();
     }, [selectedWeek]); 
 
-    // On utilise useMemo pour définir les colonnes du tableau, évitant ainsi les recalculs inutiles.
     const columns = useMemo(
         () => [
             {
                 id: 'ranking',
                 header: 'Pos',
-                Cell: ({ row }) => row.index + 1, // Cellule personnalisée pour le rang.
+                Cell: ({ row }) => row.index + 1,
                 size: 60,
             },
             { accessorKey: 'teamNumber', header: 'No Équipe' },
@@ -90,7 +102,6 @@ const ClassementEquipe = () => {
 
     if (error) return <div className={styles.container}><p>Erreur: {error}</p></div>;
 
-    // Le rendu du composant suit exactement le même modèle que les autres pages du site.
     return (
         <div className={`${styles.container} ${styles.tableRoot}`}>
             <div className={styles.header}>
@@ -107,7 +118,7 @@ const ClassementEquipe = () => {
                 </div>
             </div>
             
-            <MaterialReactTable // Utilisation de Material React Table pour afficher les données.
+            <MaterialReactTable
                 columns={columns}
                 data={rankings}
                 state={{ isLoading: loading }}
@@ -117,10 +128,9 @@ const ClassementEquipe = () => {
                 }}
                 enableStickyHeader
                 muiTableContainerProps={{ className: styles.tableContainer }}
-                // La personnalisation du style est également cohérente, utilisant des variables CSS pour le theming.
                 muiTableHeadCellProps={{
                     sx: {
-                        backgroundColor: 'var(--mrt-header-bg-color)', // Injection de style en inline pour éviter les conflits.
+                        backgroundColor: 'var(--mrt-header-bg-color)',
                         color: 'var(--mrt-header-text-color)',
                         padding: 'var(--mrt-header-padding)',
                     },
